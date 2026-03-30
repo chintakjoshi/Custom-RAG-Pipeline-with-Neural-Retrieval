@@ -1,0 +1,8 @@
+data:
+  corpus_path: artifacts/sample_msmarco_passage/corpus.jsonl
+  queries_path: artifacts/sample_msmarco_passage/queries.train.jsonl
+  triples_path: artifacts/sample_msmarco_passage/triples.train.jsonl
+  output_path: artifacts/sample_msmarco_passage/biencoder_train_triplets.jsonl
+
+mining:
+  strategy: official_triples

@@ -63,6 +63,10 @@ def load_qrels(path: str | Path) -> dict[str, dict[str, int]]:
     return qrels
 
 
+def load_triples(path: str | Path) -> list[JsonDict]:
+    return read_jsonl(path)
+
+
 def write_json(path: str | Path, payload: JsonDict) -> None:
     output_path = _ensure_parent(path)
     output_path.write_text(
