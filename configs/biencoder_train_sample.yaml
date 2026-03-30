@@ -1,0 +1,24 @@
+data:
+  train_triplets_path: artifacts/sample_msmarco_passage/biencoder_train_triplets.jsonl
+
+model:
+  model_name: sentence-transformers/all-MiniLM-L6-v2
+  query_prefix: ""
+  passage_prefix: ""
+  max_seq_length: 128
+
+loss:
+  scale: 20.0
+
+training:
+  output_dir: checkpoints/sample_biencoder
+  per_device_train_batch_size: 2
+  num_train_epochs: 1
+  learning_rate: 2.0e-5
+  warmup_steps: 0.0
+  logging_steps: 1
+  save_strategy: "no"
+  save_total_limit: 1
+  seed: 42
+  run_name: sample-biencoder
+  use_cpu: true

@@ -1,0 +1,16 @@
+data:
+  corpus_path: artifacts/sample_msmarco_passage/corpus.jsonl
+  queries_path: artifacts/sample_msmarco_passage/queries.dev.jsonl
+
+model:
+  model_name_or_path: checkpoints/sample_biencoder
+  query_prefix: ""
+  passage_prefix: ""
+
+inference:
+  batch_size: 16
+  normalize_embeddings: true
+  top_k: 5
+  use_cpu: true
+  show_progress_bar: true
+  run_output_path: results/sample_biencoder_run.json

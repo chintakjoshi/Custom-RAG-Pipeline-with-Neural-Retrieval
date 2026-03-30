@@ -13,13 +13,15 @@ Phase 1 is now in progress in the codebase:
 - Sample dataset for smoke testing
 - MS MARCO export helper for local experimentation
 - Official MS MARCO passage-ranking ingest pipeline for local normalized assets
+- Bi-encoder triplet prep, training, passage encoding, and brute-force retrieval for small-scale evaluation
 
 ## Phase 1 Quick Start
 
 1. Install dependencies:
 
 ```bash
-pip install -r requirements.txt
+python -m venv .venv
+.\.venv\Scripts\python -m pip install -r requirements.txt
 ```
 
 2. Run the sample BM25 baseline:
@@ -61,3 +63,16 @@ Normalized outputs are written as:
 - `qrels.<split>.jsonl`
 - `triples.<split>.jsonl`
 - `manifest.json`
+
+## Phase 2 Bi-Encoder
+
+With the normalized sample ingest in place, the next phase is:
+
+```bash
+.\.venv\Scripts\python data/prepare_triples.py --config configs/biencoder_prepare_sample.yaml
+.\.venv\Scripts\python retrieval/biencoder/train.py --config configs/biencoder_train_sample.yaml
+.\.venv\Scripts\python retrieval/biencoder/search.py --config configs/biencoder_search_sample.yaml
+.\.venv\Scripts\python evaluation/evaluate.py --qrels artifacts/sample_msmarco_passage/qrels.dev.jsonl --run results/sample_biencoder_run.json --k 5
+```
+
+This uses a brute-force embedding search for small datasets so we can validate the bi-encoder before introducing FAISS in the next retrieval phase.
