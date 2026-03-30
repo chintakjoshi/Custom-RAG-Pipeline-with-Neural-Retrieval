@@ -12,6 +12,7 @@ Phase 1 is now in progress in the codebase:
 - Reusable evaluation metrics for NDCG, MRR, and MAP
 - Sample dataset for smoke testing
 - MS MARCO export helper for local experimentation
+- Official MS MARCO passage-ranking ingest pipeline for local normalized assets
 
 ## Phase 1 Quick Start
 
@@ -42,3 +43,21 @@ python data/download_msmarco.py --limit 1000
 ```
 
 The export step creates normalized `corpus.jsonl`, `queries.jsonl`, and `qrels.jsonl` files under `artifacts/msmarco_validation/`. This is useful for local iteration, but it is not yet the final official MS MARCO passage-ranking corpus pipeline.
+
+## Official MS MARCO Ingest
+
+To normalize extracted official MS MARCO passage-ranking files into the repo format:
+
+```bash
+python data/ingest_msmarco_passage.py --config configs/msmarco_passage_ingest_sample.yaml
+```
+
+The sample config points at tiny official-format fixture files under `data/sample_raw/msmarco_passage/`. For the real dataset, copy that config, replace the file paths with your local `collection.tsv`, `queries.*.tsv`, `qrels.*.tsv`, and optional `qidpidtriples.*.tsv(.gz)` paths, then rerun the same command.
+
+Normalized outputs are written as:
+
+- `corpus.jsonl`
+- `queries.<split>.jsonl`
+- `qrels.<split>.jsonl`
+- `triples.<split>.jsonl`
+- `manifest.json`

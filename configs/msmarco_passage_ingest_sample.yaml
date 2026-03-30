@@ -1,0 +1,17 @@
+inputs:
+  collection: data/sample_raw/msmarco_passage/collection.tsv
+  queries:
+    train: data/sample_raw/msmarco_passage/queries.train.tsv
+    dev: data/sample_raw/msmarco_passage/queries.dev.tsv
+  qrels:
+    dev: data/sample_raw/msmarco_passage/qrels.dev.tsv
+  triples:
+    train: data/sample_raw/msmarco_passage/qidpidtriples.train.tsv
+
+output_dir: artifacts/sample_msmarco_passage
+
+limits:
+  collection: 0
+  queries: 0
+  qrels: 0
+  triples: 0
