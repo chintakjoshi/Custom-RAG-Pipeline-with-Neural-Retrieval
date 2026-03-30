@@ -1,0 +1,7 @@
+datasets>=2.18.0
+PyYAML>=6.0.1
+tqdm>=4.66.0
+
+# Optional in Phase 1. The baseline uses standard-library fallbacks where possible.
+rank-bm25>=0.2.2
+pytrec-eval-terrier>=0.5.6

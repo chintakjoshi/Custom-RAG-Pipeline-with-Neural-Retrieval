@@ -1,6 +1,8 @@
 # Neural RAG Pipeline with Learned Retrieval
 
-> A production-grade Retrieval-Augmented Generation system that replaces standard BM25/FAISS retrieval with a fully learned neural retrieval stack -- including a fine-tuned bi-encoder, a cross-encoder reranker, ColBERT-style late interaction scoring, and a locally hosted LLM generator. Built entirely with free and open-source tools.
+> Design blueprint for a Retrieval-Augmented Generation system that replaces a BM25-first retriever with a learned dense retrieval stack built on FAISS, then adds a cross-encoder reranker, ColBERT-style late interaction scoring, and a locally hosted LLM generator. Built entirely with free and open-source tools.
+
+> Current repository status: this repo currently contains the project specification and roadmap. The implementation described below is planned, not yet checked into this worktree.
 
 ---
 
@@ -14,8 +16,8 @@
 6. [Training Strategy](#training-strategy)
 7. [Evaluation](#evaluation)
 8. [Free Infrastructure Plan](#free-infrastructure-plan)
-9. [Project Structure](#project-structure)
-10. [Setup and Running](#setup-and-running)
+9. [Planned Project Structure](#planned-project-structure)
+10. [Planned Setup and Running](#planned-setup-and-running)
 11. [Results Baseline](#results-baseline)
 12. [Design Decisions and Tradeoffs](#design-decisions-and-tradeoffs)
 13. [Scaling Considerations](#scaling-considerations)
@@ -25,9 +27,9 @@
 
 ## Project Goals
 
-This project demonstrates senior-level ML engineering by going beyond off-the-shelf RAG tooling. The primary goals are:
+This project is designed to demonstrate senior-level ML engineering by going beyond off-the-shelf RAG tooling. The primary goals are:
 
-- Replace BM25 sparse retrieval with a **fine-tuned dense bi-encoder** trained with hard negative mining
+- Replace BM25 sparse first-stage retrieval with a **fine-tuned dense bi-encoder** trained with hard negative mining
 - Add a **cross-encoder reranker** as a precision stage after initial retrieval
 - Implement **ColBERT-style MaxSim late interaction** scoring as a senior differentiator
 - Distill the PyTorch cross-encoder teacher into a lightweight **TensorFlow student model** for faster inference
@@ -74,7 +76,7 @@ This project demonstrates senior-level ML engineering by going beyond off-the-sh
               +---------------------------------+
                               |
                          FINAL ANSWER
-                    + source passages cited
+                    + inline citations [1], [2]
 
 
   -- Offline Path --
@@ -133,17 +135,26 @@ The cross-encoder attends jointly over the query and passage, producing a single
 
 **Input format:** `[CLS] query [SEP] passage [SEP]`
 
+Use the pretrained sequence-classification head from the checkpoint so the published ranking weights are preserved during fine-tuning.
+
 ```python
+from transformers import AutoModelForSequenceClassification
+
 class CrossEncoderReranker(nn.Module):
     def __init__(self, model_name):
         super().__init__()
-        self.encoder    = AutoModel.from_pretrained(model_name)
-        self.classifier = nn.Linear(self.encoder.config.hidden_size, 1)
+        self.model = AutoModelForSequenceClassification.from_pretrained(
+            model_name,
+            num_labels=1,
+        )
 
-    def forward(self, input_ids, attention_mask):
-        out = self.encoder(input_ids=input_ids, attention_mask=attention_mask)
-        cls = out.last_hidden_state[:, 0, :]   # [CLS] token
-        return self.classifier(cls).squeeze(-1)
+    def forward(self, input_ids, attention_mask, token_type_ids=None):
+        out = self.model(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+        )
+        return out.logits.squeeze(-1)
 ```
 
 **Training loss:** Pairwise margin ranking loss
@@ -182,31 +193,38 @@ This is used as a final scoring layer on top of the cross-encoder shortlist, not
 
 ### 4. TensorFlow Student Model (Knowledge Distillation)
 
-The cross-encoder is accurate but slow. A smaller distilled student model in TensorFlow serves the same reranking task at lower latency.
+The cross-encoder is accurate but slow. A smaller distilled student model in TensorFlow serves the same query-passage reranking task at lower latency.
 
 **Process:**
-1. Run the PyTorch cross-encoder (teacher) over all query-passage pairs and save soft scores
+1. Run the PyTorch cross-encoder (teacher) over query-passage pairs and save soft scores
 2. Train a TF Keras student on those soft scores using MSE loss
 3. Benchmark student vs teacher on NDCG@10 and latency
 
 ```python
 import tensorflow as tf
+from transformers import AutoTokenizer, TFAutoModelForSequenceClassification
 
-student = tf.keras.Sequential([
-    tf.keras.layers.Dense(256, activation='relu', input_shape=(768,)),
-    tf.keras.layers.Dropout(0.1),
-    tf.keras.layers.Dense(128, activation='relu'),
-    tf.keras.layers.Dense(64,  activation='relu'),
-    tf.keras.layers.Dense(1)
-])
-
-student.compile(
-    optimizer=tf.keras.optimizers.Adam(1e-4),
-    loss='mse'
+tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
+student = TFAutoModelForSequenceClassification.from_pretrained(
+    "distilbert-base-uncased",
+    num_labels=1,
 )
 
-# teacher_scores are soft labels from PyTorch cross-encoder
-student.fit(passage_representations, teacher_scores, epochs=10, batch_size=64)
+train_features = tokenizer(
+    list(train_queries),
+    list(train_passages),
+    padding=True,
+    truncation=True,
+    return_tensors="tf",
+)
+
+student.compile(
+    optimizer=tf.keras.optimizers.Adam(3e-5),
+    loss=tf.keras.losses.MeanSquaredError(),
+)
+
+# teacher_scores are soft labels for query-passage pairs
+student.fit(dict(train_features), teacher_scores, epochs=2, batch_size=16)
 ```
 
 ---
@@ -229,14 +247,15 @@ import ollama
 def generate_answer(query: str, passages: list[str]) -> str:
     context = "\n\n".join([f"[{i+1}] {p}" for i, p in enumerate(passages)])
     prompt  = f"""Answer the following question using only the provided passages.
-If the answer is not in the passages, say "I don't know."
+Cite every sentence with bracketed passage ids like [1] or [2].
+If the answer is not in the passages, reply exactly: I don't know.
 
 Passages:
 {context}
 
 Question: {query}
 
-Answer:"""
+Answer with citations:"""
 
     response = ollama.chat(
         model="mistral",
@@ -332,23 +351,44 @@ Run full evaluation pipeline, generate the results table, log everything to MLfl
 
 ## Evaluation
 
-**Library:** `pytrec_eval` -- the standard IR evaluation library used in academic research
+**Library:** `pytrec_eval` for NDCG/MAP, plus a small custom helper for capped MRR@10
 
 ```python
+import numpy as np
 import pytrec_eval
 
 # qrels: {query_id: {passage_id: relevance_score}}
 # run:   {query_id: {passage_id: model_score}}
 
+def mrr_at_k(qrels, run, k=10):
+    reciprocal_ranks = []
+
+    for qid, relevant_docs in qrels.items():
+        ranked_docs = sorted(
+            run.get(qid, {}).items(),
+            key=lambda item: item[1],
+            reverse=True,
+        )[:k]
+
+        rr = 0.0
+        for rank, (doc_id, _) in enumerate(ranked_docs, start=1):
+            if relevant_docs.get(doc_id, 0) > 0:
+                rr = 1.0 / rank
+                break
+
+        reciprocal_ranks.append(rr)
+
+    return float(np.mean(reciprocal_ranks))
+
 evaluator = pytrec_eval.RelevanceEvaluator(
     qrels,
-    {'ndcg_cut.10', 'recip_rank', 'map'}
+    {"ndcg_cut.10", "map"}
 )
 
 results = evaluator.evaluate(run)
 
-ndcg_10 = np.mean([v['ndcg_cut_10']  for v in results.values()])
-mrr_10  = np.mean([v['recip_rank']   for v in results.values()])
+ndcg_10 = np.mean([v["ndcg_cut_10"] for v in results.values()])
+mrr_10  = mrr_at_k(qrels, run, k=10)
 ```
 
 **Target Results Table:**
@@ -398,7 +438,9 @@ Runs entirely on your local machine:
 
 ---
 
-## Project Structure
+## Planned Project Structure
+
+The repository does not contain these implementation files yet. This is the intended layout once the build-out starts.
 
 ```
 neural-rag-pipeline/
@@ -433,7 +475,7 @@ neural-rag-pipeline/
 |   +-- prompt_templates.py          # RAG prompt templates
 |
 +-- evaluation/
-|   +-- evaluate.py                  # NDCG@10, MRR@10 via pytrec_eval
+|   +-- evaluate.py                  # NDCG@10, MRR@10 (custom capped MRR helper)
 |   +-- run_baseline_bm25.py         # BM25 baseline for comparison
 |   +-- latency_benchmark.py         # Per-stage latency measurement
 |
@@ -464,7 +506,9 @@ neural-rag-pipeline/
 
 ---
 
-## Setup and Running
+## Planned Setup and Running
+
+The commands below are the intended workflow once the implementation files exist. In the current repository, they serve as execution targets for the planned codebase rather than runnable commands today.
 
 ### 1. Install Dependencies
 
@@ -554,7 +598,7 @@ curl -X POST http://localhost:8000/query \
 Every experiment is logged to MLflow. Key metrics tracked per run:
 
 - `ndcg_cut_10` -- NDCG at rank 10
-- `recip_rank` -- Mean Reciprocal Rank (MRR)
+- `mrr_10` -- Mean Reciprocal Rank at 10
 - `map` -- Mean Average Precision
 - `latency_biencoder_ms` -- bi-encoder query time
 - `latency_reranker_ms` -- reranker time for top-50
@@ -596,7 +640,8 @@ These are not implemented but should be documented in the README as production a
 
 **Scaling reranking throughput:**
 - Batch queries together and run the cross-encoder with dynamic batching
-- Use the TF student model in production -- same accuracy, half the latency
+- Use the TF student model when latency matters more than peak ranking quality
+- Expect a modest relevance drop in exchange for materially lower latency
 - Async FastAPI endpoints to handle concurrent requests
 
 **Scaling the LLM generator:**

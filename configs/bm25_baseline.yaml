@@ -1,0 +1,14 @@
+dataset:
+  corpus_path: data/sample/corpus.jsonl
+  queries_path: data/sample/queries.jsonl
+  qrels_path: data/sample/qrels.jsonl
+
+retrieval:
+  top_k: 5
+  eval_k: 5
+  k1: 1.5
+  b: 0.75
+
+outputs:
+  run_path: results/sample_bm25_run.json
+  metrics_path: results/sample_bm25_metrics.json
