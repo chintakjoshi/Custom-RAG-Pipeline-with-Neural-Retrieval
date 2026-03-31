@@ -11,6 +11,6 @@ inference:
   batch_size: 16
   normalize_embeddings: true
   top_k: 5
-  use_cpu: true
+  use_cpu: false
   show_progress_bar: true
   run_output_path: results/sample_biencoder_run.json

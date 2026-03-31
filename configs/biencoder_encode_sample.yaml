@@ -8,7 +8,7 @@ model:
 inference:
   batch_size: 16
   normalize_embeddings: true
-  use_cpu: true
+  use_cpu: false
   show_progress_bar: true
   embeddings_path: artifacts/sample_msmarco_passage/passage_embeddings.npy
   ids_path: artifacts/sample_msmarco_passage/passage_ids.json

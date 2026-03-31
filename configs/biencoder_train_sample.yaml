@@ -21,4 +21,4 @@ training:
   save_total_limit: 1
   seed: 42
   run_name: sample-biencoder
-  use_cpu: true
+  use_cpu: false
