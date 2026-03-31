@@ -16,6 +16,7 @@ Phase 1 is now in progress in the codebase:
 - Bi-encoder triplet prep, training, passage encoding, and brute-force retrieval for small-scale evaluation
 - FAISS index build and indexed dense retrieval for the trained bi-encoder
 - Cross-encoder pair prep, training, and reranking over FAISS candidates
+- ColBERT-style late interaction reranking over the cross-encoder shortlist
 
 ## Phase 1 Quick Start
 
@@ -104,3 +105,14 @@ To add the second-stage reranker on top of the FAISS candidates:
 ```
 
 This stage trains a cross-encoder on labeled query-passage pairs derived from the triplets, then reranks the top FAISS candidates with full pairwise attention.
+
+## Phase 5 ColBERT-Style Late Interaction
+
+To add a MaxSim late-interaction reranker on top of the cross-encoder shortlist:
+
+```bash
+.\.venv\Scripts\python reranking/colbert/rerank.py --config configs/colbert_rerank_sample.yaml
+.\.venv\Scripts\python evaluation/evaluate.py --qrels artifacts/sample_msmarco_passage/qrels.dev.jsonl --run results/sample_colbert_reranked_run.json --k 5
+```
+
+This phase uses token-level embeddings plus MaxSim scoring as a final reranking layer over a small candidate set, which keeps the implementation practical before introducing a fully trained ColBERT-style retriever.
