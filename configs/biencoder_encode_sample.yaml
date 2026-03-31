@@ -1,0 +1,14 @@
+data:
+  corpus_path: artifacts/sample_msmarco_passage/corpus.jsonl
+
+model:
+  model_name_or_path: checkpoints/sample_biencoder
+  passage_prefix: ""
+
+inference:
+  batch_size: 16
+  normalize_embeddings: true
+  use_cpu: true
+  show_progress_bar: true
+  embeddings_path: artifacts/sample_msmarco_passage/passage_embeddings.npy
+  ids_path: artifacts/sample_msmarco_passage/passage_ids.json
