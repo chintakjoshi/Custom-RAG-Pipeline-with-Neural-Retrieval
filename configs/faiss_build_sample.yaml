@@ -1,0 +1,8 @@
+embeddings:
+  embeddings_path: artifacts/sample_msmarco_passage/passage_embeddings.npy
+  ids_path: artifacts/sample_msmarco_passage/passage_ids.json
+
+index:
+  metric: ip
+  index_path: artifacts/sample_msmarco_passage/faiss/index.flatip
+  metadata_path: artifacts/sample_msmarco_passage/faiss/index_metadata.json
