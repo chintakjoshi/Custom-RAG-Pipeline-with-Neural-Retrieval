@@ -18,6 +18,7 @@ Implemented so far in the codebase:
 - Cross-encoder pair prep, training, and reranking over FAISS candidates
 - ColBERT-style late interaction reranking over the cross-encoder shortlist
 - TensorFlow student distillation with soft-label export, student training, and student reranking
+- Latency benchmarking and combined results-table generation across retrieval stages
 
 ## Phase 1 Quick Start
 
@@ -130,3 +131,20 @@ To distill the cross-encoder teacher into a smaller TensorFlow student reranker:
 ```
 
 This phase exports soft teacher scores from the trained cross-encoder, fine-tunes a TensorFlow DistilBERT student on those scores, then uses the student as a lower-latency reranker over the FAISS candidate set. On native Windows, TensorFlow runs CPU-only in this setup.
+
+## Phase 7 Benchmarking and Comparison
+
+To benchmark stage latency and generate a comparison table across the sample runs:
+
+```bash
+.\.venv\Scripts\python evaluation/latency_benchmark.py --config configs/latency_benchmark_sample.yaml
+.\.venv\Scripts\python evaluation/build_results_table.py --config configs/results_table_sample.yaml
+```
+
+This phase measures BM25, bi-encoder + FAISS, cross-encoder reranking, ColBERT MaxSim reranking, and the TensorFlow student reranker on the same query set. It also produces:
+
+- `results/sample_latency_benchmark.json`
+- `results/sample_results_table.json`
+- `results/sample_results_table.md`
+
+On the current sample workflow, the TensorFlow student is slower than the PyTorch cross-encoder on native Windows CPU, so the benchmark now captures the real tradeoff instead of assuming distillation is always faster.
