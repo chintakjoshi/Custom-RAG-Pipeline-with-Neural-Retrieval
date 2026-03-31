@@ -5,7 +5,7 @@ The current repository contains the project documentation and implementation pla
 
 ## Build Status
 
-Phase 1 is now in progress in the codebase:
+Implemented so far in the codebase:
 
 - Project scaffold and reusable core modules
 - Pure-Python BM25 baseline retriever
@@ -17,6 +17,7 @@ Phase 1 is now in progress in the codebase:
 - FAISS index build and indexed dense retrieval for the trained bi-encoder
 - Cross-encoder pair prep, training, and reranking over FAISS candidates
 - ColBERT-style late interaction reranking over the cross-encoder shortlist
+- TensorFlow student distillation with soft-label export, student training, and student reranking
 
 ## Phase 1 Quick Start
 
@@ -116,3 +117,16 @@ To add a MaxSim late-interaction reranker on top of the cross-encoder shortlist:
 ```
 
 This phase uses token-level embeddings plus MaxSim scoring as a final reranking layer over a small candidate set, which keeps the implementation practical before introducing a fully trained ColBERT-style retriever.
+
+## Phase 6 TensorFlow Distillation
+
+To distill the cross-encoder teacher into a smaller TensorFlow student reranker:
+
+```bash
+.\.venv\Scripts\python reranking/distillation/generate_soft_labels.py --config configs/distillation_generate_soft_labels_sample.yaml
+.\.venv\Scripts\python reranking/distillation/train_student_tf.py --config configs/distillation_train_student_sample.yaml
+.\.venv\Scripts\python reranking/distillation/rerank_student_tf.py --config configs/distillation_rerank_student_sample.yaml
+.\.venv\Scripts\python evaluation/evaluate.py --qrels artifacts/sample_msmarco_passage/qrels.dev.jsonl --run results/sample_tf_student_reranked_run.json --k 5
+```
+
+This phase exports soft teacher scores from the trained cross-encoder, fine-tunes a TensorFlow DistilBERT student on those scores, then uses the student as a lower-latency reranker over the FAISS candidate set. On native Windows, TensorFlow runs CPU-only in this setup.

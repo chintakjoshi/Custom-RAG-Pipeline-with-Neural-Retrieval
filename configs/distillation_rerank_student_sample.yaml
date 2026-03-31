@@ -1,0 +1,16 @@
+data:
+  corpus_path: artifacts/sample_msmarco_passage/corpus.jsonl
+  queries_path: artifacts/sample_msmarco_passage/queries.dev.jsonl
+  candidate_run_path: results/sample_faiss_run.json
+
+model:
+  model_name_or_path: checkpoints/sample_tf_student
+  max_length: 256
+  num_labels: 1
+  from_pt: false
+  use_safetensors: false
+
+inference:
+  batch_size: 8
+  top_k: 5
+  run_output_path: results/sample_tf_student_reranked_run.json
