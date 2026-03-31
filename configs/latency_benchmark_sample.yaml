@@ -16,7 +16,7 @@ faiss:
   batch_size: 1
   normalize_embeddings: true
   top_k: 5
-  use_cpu: true
+  use_cpu: false
 
 cross_encoder:
   model_name_or_path: checkpoints/sample_cross_encoder
@@ -24,7 +24,7 @@ cross_encoder:
   num_labels: 1
   batch_size: 8
   top_k: 5
-  use_cpu: true
+  use_cpu: false
 
 colbert:
   model_name_or_path: sentence-transformers/all-MiniLM-L6-v2
@@ -33,7 +33,7 @@ colbert:
   top_k: 5
   query_prefix: ""
   passage_prefix: ""
-  use_cpu: true
+  use_cpu: false
 
 tf_student:
   model_name_or_path: checkpoints/sample_tf_student

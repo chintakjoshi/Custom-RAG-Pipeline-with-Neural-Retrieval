@@ -19,6 +19,8 @@ Implemented so far in the codebase:
 - ColBERT-style late interaction reranking over the cross-encoder shortlist
 - TensorFlow student distillation with soft-label export, student training, and student reranking
 - Latency benchmarking and combined results-table generation across retrieval stages
+- CUDA-enabled PyTorch in `.venv` for GPU-backed retrieval and reranking on this machine
+- BEIR zero-shot evaluation with GPU-backed dense retrieval and saved benchmark summaries
 
 ## Phase 1 Quick Start
 
@@ -27,6 +29,12 @@ Implemented so far in the codebase:
 ```bash
 python -m venv .venv
 .\.venv\Scripts\python -m pip install -r requirements.txt
+```
+
+Optional but recommended on this machine for CUDA-backed PyTorch phases:
+
+```bash
+.\.venv\Scripts\python -m pip install --upgrade --force-reinstall torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
 ```
 
 2. Run the sample BM25 baseline:
@@ -148,3 +156,20 @@ This phase measures BM25, bi-encoder + FAISS, cross-encoder reranking, ColBERT M
 - `results/sample_results_table.md`
 
 On the current sample workflow, the TensorFlow student is slower than the PyTorch cross-encoder on native Windows CPU, so the benchmark now captures the real tradeoff instead of assuming distillation is always faster.
+
+## Phase 8 BEIR Zero-Shot Evaluation
+
+To run a GPU-backed BEIR zero-shot evaluation:
+
+```bash
+.\.venv\Scripts\python evaluation/beir_zero_shot.py --config configs/beir_zero_shot_sample.yaml
+```
+
+The sample config runs SciFact with `sentence-transformers/all-MiniLM-L6-v2` and stores:
+
+- `results/beir_zero_shot/sample_minilm/scifact.run.json`
+- `results/beir_zero_shot/sample_minilm/scifact.metrics.json`
+- `results/beir_zero_shot/sample_minilm_summary.json`
+- `results/beir_zero_shot/sample_minilm_summary.md`
+
+On the current GTX 1050 Ti setup, the SciFact smoke test completed on `cuda` with `NDCG@10=0.6451`, `MRR@10=0.6047`, and `MAP@10=0.5959`.

@@ -12,5 +12,5 @@ model:
 inference:
   batch_size: 8
   top_k: 5
-  use_cpu: true
+  use_cpu: false
   run_output_path: results/sample_colbert_reranked_run.json
