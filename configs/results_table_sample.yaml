@@ -1,0 +1,32 @@
+evaluation:
+  qrels_path: artifacts/sample_msmarco_passage/qrels.dev.jsonl
+  k: 5
+
+benchmark:
+  benchmark_path: results/sample_latency_benchmark.json
+
+methods:
+  - id: bm25
+    name: BM25
+    run_path: results/msmarco_ingest_bm25_run.json
+    latency_stage: bm25
+  - id: biencoder_faiss
+    name: Bi-Encoder + FAISS
+    run_path: results/sample_faiss_run.json
+    latency_stage: faiss_biencoder
+  - id: cross_encoder
+    name: + Cross-Encoder
+    run_path: results/sample_cross_encoder_reranked_run.json
+    latency_stage: cross_encoder
+  - id: colbert
+    name: + ColBERT MaxSim
+    run_path: results/sample_colbert_reranked_run.json
+    latency_stage: colbert
+  - id: tf_student
+    name: TF Student
+    run_path: results/sample_tf_student_reranked_run.json
+    latency_stage: tf_student
+
+outputs:
+  json_path: results/sample_results_table.json
+  markdown_path: results/sample_results_table.md

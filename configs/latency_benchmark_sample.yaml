@@ -1,0 +1,50 @@
+data:
+  corpus_path: artifacts/sample_msmarco_passage/corpus.jsonl
+  queries_path: artifacts/sample_msmarco_passage/queries.dev.jsonl
+  candidate_run_path: results/sample_faiss_run.json
+  faiss_index_path: artifacts/sample_msmarco_passage/faiss/index.flatip
+  faiss_ids_path: artifacts/sample_msmarco_passage/passage_ids.json
+
+bm25:
+  top_k: 5
+  k1: 1.5
+  b: 0.75
+
+faiss:
+  model_name_or_path: checkpoints/sample_biencoder
+  query_prefix: ""
+  batch_size: 1
+  normalize_embeddings: true
+  top_k: 5
+  use_cpu: true
+
+cross_encoder:
+  model_name_or_path: checkpoints/sample_cross_encoder
+  max_length: 256
+  num_labels: 1
+  batch_size: 8
+  top_k: 5
+  use_cpu: true
+
+colbert:
+  model_name_or_path: sentence-transformers/all-MiniLM-L6-v2
+  max_length: 128
+  batch_size: 8
+  top_k: 5
+  query_prefix: ""
+  passage_prefix: ""
+  use_cpu: true
+
+tf_student:
+  model_name_or_path: checkpoints/sample_tf_student
+  max_length: 256
+  num_labels: 1
+  from_pt: false
+  use_safetensors: false
+  batch_size: 8
+  top_k: 5
+
+benchmark:
+  warmup_iterations: 1
+  iterations: 3
+  output_path: results/sample_latency_benchmark.json
