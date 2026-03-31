@@ -1,0 +1,18 @@
+data:
+  train_soft_labels_path: artifacts/sample_msmarco_passage/distillation_soft_labels.jsonl
+
+model:
+  model_name_or_path: distilbert-base-uncased
+  max_length: 256
+  num_labels: 1
+  from_pt: false
+  use_safetensors: false
+
+training:
+  output_dir: checkpoints/sample_tf_student
+  train_batch_size: 2
+  epochs: 5
+  learning_rate: 3.0e-5
+  seed: 42
+  target_transform: zscore
+  verbose: true
