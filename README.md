@@ -15,6 +15,7 @@ Phase 1 is now in progress in the codebase:
 - Official MS MARCO passage-ranking ingest pipeline for local normalized assets
 - Bi-encoder triplet prep, training, passage encoding, and brute-force retrieval for small-scale evaluation
 - FAISS index build and indexed dense retrieval for the trained bi-encoder
+- Cross-encoder pair prep, training, and reranking over FAISS candidates
 
 ## Phase 1 Quick Start
 
@@ -90,3 +91,16 @@ To move from brute-force similarity search to indexed dense retrieval:
 ```
 
 The sample configuration uses `IndexFlatIP` over normalized embeddings, which corresponds to cosine-similarity ranking while keeping the setup simple for the current phase.
+
+## Phase 4 Cross-Encoder Reranking
+
+To add the second-stage reranker on top of the FAISS candidates:
+
+```bash
+.\.venv\Scripts\python data/prepare_reranker_pairs.py --config configs/cross_encoder_prepare_sample.yaml
+.\.venv\Scripts\python reranking/cross_encoder/train.py --config configs/cross_encoder_train_sample.yaml
+.\.venv\Scripts\python reranking/cross_encoder/rerank.py --config configs/cross_encoder_rerank_sample.yaml
+.\.venv\Scripts\python evaluation/evaluate.py --qrels artifacts/sample_msmarco_passage/qrels.dev.jsonl --run results/sample_cross_encoder_reranked_run.json --k 5
+```
+
+This stage trains a cross-encoder on labeled query-passage pairs derived from the triplets, then reranks the top FAISS candidates with full pairwise attention.
