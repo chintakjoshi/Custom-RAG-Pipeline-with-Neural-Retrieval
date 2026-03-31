@@ -1,0 +1,16 @@
+data:
+  corpus_path: artifacts/sample_msmarco_passage/corpus.jsonl
+  queries_path: artifacts/sample_msmarco_passage/queries.dev.jsonl
+  candidate_run_path: results/sample_faiss_run.json
+
+model:
+  model_name_or_path: checkpoints/sample_cross_encoder
+  max_length: 256
+  num_labels: 1
+
+inference:
+  batch_size: 16
+  top_k: 5
+  use_cpu: true
+  show_progress_bar: true
+  run_output_path: results/sample_cross_encoder_reranked_run.json

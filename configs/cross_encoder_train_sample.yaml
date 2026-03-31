@@ -1,0 +1,17 @@
+data:
+  train_pairs_path: artifacts/sample_msmarco_passage/cross_encoder_train_pairs.jsonl
+
+model:
+  model_name: cross-encoder/ms-marco-MiniLM-L-6-v2
+  max_length: 256
+  num_labels: 1
+
+training:
+  output_dir: checkpoints/sample_cross_encoder
+  train_batch_size: 2
+  epochs: 1
+  learning_rate: 2.0e-5
+  weight_decay: 0.01
+  warmup_ratio: 0.0
+  use_cpu: true
+  show_progress_bar: true
