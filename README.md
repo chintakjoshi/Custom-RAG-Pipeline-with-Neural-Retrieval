@@ -20,7 +20,7 @@ Implemented so far in the codebase:
 - TensorFlow student distillation with soft-label export, student training, and student reranking
 - Latency benchmarking and combined results-table generation across retrieval stages
 - CUDA-enabled PyTorch in `.venv` for GPU-backed retrieval and reranking on this machine
-- BEIR zero-shot evaluation with GPU-backed dense retrieval and saved benchmark summaries
+- BEIR zero-shot evaluation with GPU-backed dense retrieval, multi-dataset sweeps, and saved benchmark summaries
 
 ## Phase 1 Quick Start
 
@@ -173,3 +173,21 @@ The sample config runs SciFact with `sentence-transformers/all-MiniLM-L6-v2` and
 - `results/beir_zero_shot/sample_minilm_summary.md`
 
 On the current GTX 1050 Ti setup, the SciFact smoke test completed on `cuda` with `NDCG@10=0.6451`, `MRR@10=0.6047`, and `MAP@10=0.5959`.
+
+To run a broader zero-shot sweep across SciFact, FiQA, and TREC-COVID:
+
+```bash
+.\.venv\Scripts\python evaluation/beir_zero_shot.py --config configs/beir_zero_shot_broad.yaml
+```
+
+This configuration stores per-dataset runs and metrics under `results/beir_zero_shot/broad_minilm/`, plus consolidated summaries in:
+
+- `results/beir_zero_shot/broad_minilm_summary.json`
+- `results/beir_zero_shot/broad_minilm_summary.md`
+
+On the current GTX 1050 Ti setup, that broader sweep completed on `cuda` with:
+
+- `scifact`: `NDCG@10=0.6451`, `MRR@10=0.6047`, `MAP@10=0.5959`
+- `fiqa`: `NDCG@10=0.3687`, `MRR@10=0.4451`, `MAP@10=0.2914`
+- `trec-covid`: `NDCG@10=0.4725`, `MRR@10=0.7244`, `MAP@10=0.0105`
+- `macro average`: `NDCG@10=0.4954`, `MRR@10=0.5914`, `MAP@10=0.2993`

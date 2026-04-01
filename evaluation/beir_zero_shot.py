@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import statistics
 import sys
 import time
 
@@ -74,6 +75,13 @@ def format_optional_metric(value: float | None) -> str:
     if value is None:
         return "n/a"
     return f"{value:.4f}"
+
+
+def mean_optional(values: list[float | None]) -> float | None:
+    present = [value for value in values if value is not None]
+    if not present:
+        return None
+    return statistics.fmean(present)
 
 
 def main() -> None:
@@ -223,6 +231,40 @@ def main() -> None:
             f"time={elapsed_seconds:.2f}s"
         )
 
+    total_elapsed_seconds = sum(
+        float(dataset["elapsed_seconds"]) for dataset in dataset_summaries
+    )
+    aggregate_summary = {
+        "num_datasets": len(dataset_summaries),
+        "num_queries": sum(int(dataset["num_queries"]) for dataset in dataset_summaries),
+        "num_corpus_docs": sum(int(dataset["num_corpus_docs"]) for dataset in dataset_summaries),
+        "total_elapsed_seconds": total_elapsed_seconds,
+        "mean_elapsed_seconds": (
+            total_elapsed_seconds / len(dataset_summaries) if dataset_summaries else 0.0
+        ),
+        "ndcg_at_report_k": mean_optional(
+            [dataset["ndcg_at_report_k"] for dataset in dataset_summaries]
+        ),
+        "mrr_at_report_k": mean_optional(
+            [dataset["mrr_at_report_k"] for dataset in dataset_summaries]
+        ),
+        "map_at_report_k": mean_optional(
+            [dataset["map_at_report_k"] for dataset in dataset_summaries]
+        ),
+    }
+
+    markdown_lines.append(
+        "| Macro Average | - | {} | {} | {} | {} | {} | {} | {:.2f} |".format(
+            format_optional_metric(aggregate_summary["ndcg_at_report_k"]),
+            format_optional_metric(aggregate_summary["mrr_at_report_k"]),
+            format_optional_metric(aggregate_summary["map_at_report_k"]),
+            aggregate_summary["num_queries"],
+            aggregate_summary["num_corpus_docs"],
+            device,
+            aggregate_summary["total_elapsed_seconds"],
+        )
+    )
+
     summary_payload = {
         "model_name_or_path": str(model_config["model_name_or_path"]),
         "device": device,
@@ -232,6 +274,7 @@ def main() -> None:
         "k_values": k_values,
         "report_k": report_k,
         "datasets": dataset_summaries,
+        "aggregate": aggregate_summary,
     }
 
     summary_json_path = Path(output_config["summary_json_path"])
