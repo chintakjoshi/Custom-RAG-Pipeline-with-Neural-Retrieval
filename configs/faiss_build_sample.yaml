@@ -6,3 +6,11 @@ index:
   metric: ip
   index_path: artifacts/sample_msmarco_passage/faiss/index.flatip
   metadata_path: artifacts/sample_msmarco_passage/faiss/index_metadata.json
+
+mlflow:
+  enabled: true
+  tracking_uri: artifacts/mlruns
+  experiment_name: custom-rag-pipeline
+  run_name: sample-faiss-build
+  tags:
+    phase: phase3

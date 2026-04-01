@@ -17,6 +17,7 @@ from neural_rag.datasets import (
     write_json,
 )
 from neural_rag.evaluation import evaluate_run
+from neural_rag.mlflow_utils import flatten_mapping, sanitize_metric_name, start_mlflow_run
 from neural_rag.retrieval.bm25 import BM25Retriever
 
 
@@ -94,38 +95,56 @@ def resolve_settings(args: argparse.Namespace) -> dict[str, Any]:
 
 def main() -> None:
     args = parse_args()
+    config = load_config(args.config) if args.config else {}
     settings = resolve_settings(args)
 
-    corpus_path = Path(settings["corpus"])
-    queries_path = Path(settings["queries"])
-    qrels_path = Path(settings["qrels"])
+    with start_mlflow_run(
+        config.get("mlflow", {}),
+        config_path=args.config,
+        default_run_name="bm25-baseline",
+        default_tags={"stage": "baseline", "script": "evaluation/run_baseline_bm25.py"},
+    ) as tracker:
+        corpus_path = Path(settings["corpus"])
+        queries_path = Path(settings["queries"])
+        qrels_path = Path(settings["qrels"])
 
-    corpus = load_corpus(corpus_path)
-    queries = load_queries(queries_path)
-    qrels = load_qrels(qrels_path)
+        tracker.log_params(flatten_mapping({"settings": settings}))
 
-    retriever = BM25Retriever(
-        corpus,
-        k1=float(settings["k1"]),
-        b=float(settings["b"]),
-    )
+        corpus = load_corpus(corpus_path)
+        queries = load_queries(queries_path)
+        qrels = load_qrels(qrels_path)
 
-    run: dict[str, dict[str, float]] = {}
-    for query_id, query_text in queries.items():
-        results = retriever.search(query_text, top_k=int(settings["top_k"]))
-        run[query_id] = {result.doc_id: result.score for result in results}
+        retriever = BM25Retriever(
+            corpus,
+            k1=float(settings["k1"]),
+            b=float(settings["b"]),
+        )
 
-    write_json(settings["output"], run)
-    metrics = evaluate_run(qrels, run, k=int(settings["eval_k"]))
-    write_json(settings["metrics_output"], metrics)
+        run: dict[str, dict[str, float]] = {}
+        for query_id, query_text in queries.items():
+            results = retriever.search(query_text, top_k=int(settings["top_k"]))
+            run[query_id] = {result.doc_id: result.score for result in results}
 
-    print(f"Saved run to {settings['output']}")
-    print(f"Saved metrics to {settings['metrics_output']}")
-    for key, value in metrics.items():
-        if key == "num_queries":
-            print(f"{key}: {int(value)}")
-        else:
-            print(f"{key}: {value:.4f}")
+        write_json(settings["output"], run)
+        metrics = evaluate_run(qrels, run, k=int(settings["eval_k"]))
+        write_json(settings["metrics_output"], metrics)
+
+        tracker.log_metrics(
+            {
+                sanitize_metric_name(key): value
+                for key, value in metrics.items()
+            }
+        )
+        tracker.log_artifact(settings["output"], artifact_path="outputs")
+        tracker.log_artifact(settings["metrics_output"], artifact_path="outputs")
+
+        print(f"Saved run to {settings['output']}")
+        print(f"Saved metrics to {settings['metrics_output']}")
+        for key, value in metrics.items():
+            if key == "num_queries":
+                print(f"{key}: {int(value)}")
+            else:
+                print(f"{key}: {value:.4f}")
 
 
 if __name__ == "__main__":

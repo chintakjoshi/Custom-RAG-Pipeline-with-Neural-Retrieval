@@ -11,6 +11,7 @@ if str(ROOT) not in sys.path:
 
 from neural_rag.config import load_config
 from neural_rag.datasets import read_jsonl, write_json
+from neural_rag.mlflow_utils import flatten_mapping, start_mlflow_run
 from reranking.distillation.model import TensorFlowStudentReranker, require_tensorflow
 
 
@@ -30,92 +31,119 @@ def main() -> None:
     args = parse_args()
     config = load_config(args.config)
 
-    data_config = config.get("data", {})
-    model_config = config.get("model", {})
-    training_config = config.get("training", {})
+    with start_mlflow_run(
+        config.get("mlflow", {}),
+        config_path=args.config,
+        default_run_name="tf-student-train",
+        default_tags={"stage": "distillation", "script": "reranking/distillation/train_student_tf.py"},
+    ) as tracker:
+        data_config = config.get("data", {})
+        model_config = config.get("model", {})
+        training_config = config.get("training", {})
 
-    records = read_jsonl(data_config["train_soft_labels_path"])
-    if not records:
-        raise ValueError(
-            f"No distillation training records found in {data_config['train_soft_labels_path']}"
+        tracker.log_params(
+            flatten_mapping(
+                {
+                    "data": data_config,
+                    "model": model_config,
+                    "training": training_config,
+                }
+            )
         )
 
-    seed = int(training_config.get("seed", 42))
-    tf.keras.utils.set_random_seed(seed)
+        records = read_jsonl(data_config["train_soft_labels_path"])
+        if not records:
+            raise ValueError(
+                f"No distillation training records found in {data_config['train_soft_labels_path']}"
+            )
 
-    train_pairs = [
-        (str(record["query_text"]), str(record["passage_text"]))
-        for record in records
-    ]
-    teacher_scores = [float(record["teacher_score"]) for record in records]
-    target_transform = str(training_config.get("target_transform", "zscore")).lower()
-    target_mean = statistics.fmean(teacher_scores)
-    target_std = 1.0
-    train_targets = teacher_scores
+        seed = int(training_config.get("seed", 42))
+        tf.keras.utils.set_random_seed(seed)
 
-    if target_transform == "zscore":
-        variance = statistics.fmean(
-            (score - target_mean) ** 2 for score in teacher_scores
-        )
-        target_std = variance ** 0.5 or 1.0
-        train_targets = [
-            (score - target_mean) / target_std
-            for score in teacher_scores
+        train_pairs = [
+            (str(record["query_text"]), str(record["passage_text"]))
+            for record in records
         ]
-    elif target_transform != "none":
-        raise ValueError(
-            "training.target_transform must be either 'zscore' or 'none'."
+        teacher_scores = [float(record["teacher_score"]) for record in records]
+        target_transform = str(training_config.get("target_transform", "zscore")).lower()
+        target_mean = statistics.fmean(teacher_scores)
+        target_std = 1.0
+        train_targets = teacher_scores
+
+        if target_transform == "zscore":
+            variance = statistics.fmean(
+                (score - target_mean) ** 2 for score in teacher_scores
+            )
+            target_std = variance ** 0.5 or 1.0
+            train_targets = [
+                (score - target_mean) / target_std
+                for score in teacher_scores
+            ]
+        elif target_transform != "none":
+            raise ValueError(
+                "training.target_transform must be either 'zscore' or 'none'."
+            )
+
+        student = TensorFlowStudentReranker(
+            str(model_config["model_name_or_path"]),
+            max_length=int(model_config.get("max_length", 256)),
+            num_labels=int(model_config.get("num_labels", 1)),
+            from_pt=bool(model_config.get("from_pt", False)),
+            use_safetensors=bool(model_config.get("use_safetensors", False)),
         )
 
-    student = TensorFlowStudentReranker(
-        str(model_config["model_name_or_path"]),
-        max_length=int(model_config.get("max_length", 256)),
-        num_labels=int(model_config.get("num_labels", 1)),
-        from_pt=bool(model_config.get("from_pt", False)),
-        use_safetensors=bool(model_config.get("use_safetensors", False)),
-    )
-
-    train_dataset = student.build_training_dataset(
-        train_pairs,
-        train_targets,
-        batch_size=int(training_config.get("train_batch_size", 8)),
-        shuffle=True,
-        seed=seed,
-    )
-
-    student.model.compile(
-        optimizer=keras.optimizers.Adam(
-            learning_rate=float(training_config.get("learning_rate", 3e-5))
+        train_dataset = student.build_training_dataset(
+            train_pairs,
+            train_targets,
+            batch_size=int(training_config.get("train_batch_size", 8)),
+            shuffle=True,
+            seed=seed,
         )
-    )
-    history = student.model.fit(
-        train_dataset,
-        epochs=int(training_config.get("epochs", 1)),
-        verbose=1 if bool(training_config.get("verbose", True)) else 0,
-    )
 
-    output_dir = Path(training_config["output_dir"])
-    student.save_pretrained(output_dir)
+        student.model.compile(
+            optimizer=keras.optimizers.Adam(
+                learning_rate=float(training_config.get("learning_rate", 3e-5))
+            )
+        )
+        history = student.model.fit(
+            train_dataset,
+            epochs=int(training_config.get("epochs", 1)),
+            verbose=1 if bool(training_config.get("verbose", True)) else 0,
+        )
 
-    write_json(
-        output_dir / "training_summary.json",
-        {
-            "base_model_name_or_path": str(model_config["model_name_or_path"]),
-            "train_soft_labels_path": str(data_config["train_soft_labels_path"]),
-            "num_examples": len(records),
-            "epochs": int(training_config.get("epochs", 1)),
-            "train_batch_size": int(training_config.get("train_batch_size", 8)),
-            "learning_rate": float(training_config.get("learning_rate", 3e-5)),
-            "seed": seed,
-            "target_transform": target_transform,
-            "target_mean": target_mean,
-            "target_std": target_std,
-            "final_loss": float(history.history["loss"][-1]),
-        },
-    )
+        output_dir = Path(training_config["output_dir"])
+        student.save_pretrained(output_dir)
 
-    print(f"Training finished. TensorFlow student saved to {output_dir}")
-    print(f"Examples: {len(records)}")
+        summary_path = output_dir / "training_summary.json"
+        write_json(
+            summary_path,
+            {
+                "base_model_name_or_path": str(model_config["model_name_or_path"]),
+                "train_soft_labels_path": str(data_config["train_soft_labels_path"]),
+                "num_examples": len(records),
+                "epochs": int(training_config.get("epochs", 1)),
+                "train_batch_size": int(training_config.get("train_batch_size", 8)),
+                "learning_rate": float(training_config.get("learning_rate", 3e-5)),
+                "seed": seed,
+                "target_transform": target_transform,
+                "target_mean": target_mean,
+                "target_std": target_std,
+                "final_loss": float(history.history["loss"][-1]),
+            },
+        )
+
+        tracker.log_metrics(
+            {
+                "num_examples": len(records),
+                "target_mean": target_mean,
+                "target_std": target_std,
+                "final_loss": float(history.history["loss"][-1]),
+            }
+        )
+        tracker.log_artifact(summary_path, artifact_path="outputs")
+
+        print(f"Training finished. TensorFlow student saved to {output_dir}")
+        print(f"Examples: {len(records)}")
 
 
 if __name__ == "__main__":

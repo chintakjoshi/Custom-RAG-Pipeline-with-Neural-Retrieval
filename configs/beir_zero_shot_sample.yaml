@@ -24,3 +24,11 @@ outputs:
   output_dir: results/beir_zero_shot/sample_minilm
   summary_json_path: results/beir_zero_shot/sample_minilm_summary.json
   summary_markdown_path: results/beir_zero_shot/sample_minilm_summary.md
+
+mlflow:
+  enabled: true
+  tracking_uri: artifacts/mlruns
+  experiment_name: custom-rag-pipeline
+  run_name: sample-beir-scifact
+  tags:
+    phase: phase8

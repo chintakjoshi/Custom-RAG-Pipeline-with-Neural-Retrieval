@@ -12,3 +12,11 @@ retrieval:
 outputs:
   run_path: results/sample_bm25_run.json
   metrics_path: results/sample_bm25_metrics.json
+
+mlflow:
+  enabled: true
+  tracking_uri: artifacts/mlruns
+  experiment_name: custom-rag-pipeline
+  run_name: sample-bm25-baseline
+  tags:
+    phase: phase1
