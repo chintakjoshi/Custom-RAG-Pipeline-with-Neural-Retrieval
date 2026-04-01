@@ -11,6 +11,7 @@ if str(ROOT) not in sys.path:
 
 from neural_rag.config import load_config
 from neural_rag.datasets import read_jsonl, write_json, write_jsonl
+from neural_rag.mlflow_utils import flatten_mapping, start_mlflow_run
 from reranking.cross_encoder.model import load_cross_encoder
 
 
@@ -26,58 +27,85 @@ def main() -> None:
     args = parse_args()
     config = load_config(args.config)
 
-    data_config = config.get("data", {})
-    model_config = config.get("teacher_model", {})
-    inference_config = config.get("inference", {})
+    with start_mlflow_run(
+        config.get("mlflow", {}),
+        config_path=args.config,
+        default_run_name="distillation-soft-labels",
+        default_tags={"stage": "distillation", "script": "reranking/distillation/generate_soft_labels.py"},
+    ) as tracker:
+        data_config = config.get("data", {})
+        model_config = config.get("teacher_model", {})
+        inference_config = config.get("inference", {})
 
-    pair_records = read_jsonl(data_config["pairs_path"])
-    if not pair_records:
-        raise ValueError(f"No query-passage pairs found in {data_config['pairs_path']}")
+        tracker.log_params(
+            flatten_mapping(
+                {
+                    "data": data_config,
+                    "teacher_model": model_config,
+                    "inference": inference_config,
+                }
+            )
+        )
 
-    teacher = load_cross_encoder(
-        str(model_config["model_name_or_path"]),
-        use_cpu=bool(inference_config.get("use_cpu", False)),
-        max_length=int(model_config.get("max_length", 256)),
-        num_labels=int(model_config.get("num_labels", 1)),
-    )
+        pair_records = read_jsonl(data_config["pairs_path"])
+        if not pair_records:
+            raise ValueError(f"No query-passage pairs found in {data_config['pairs_path']}")
 
-    pair_inputs = [
-        (str(record["query_text"]), str(record["passage_text"]))
-        for record in pair_records
-    ]
-    scores = teacher.predict(
-        pair_inputs,
-        batch_size=int(inference_config.get("batch_size", 16)),
-        show_progress_bar=bool(inference_config.get("show_progress_bar", True)),
-        convert_to_numpy=True,
-    )
+        teacher = load_cross_encoder(
+            str(model_config["model_name_or_path"]),
+            use_cpu=bool(inference_config.get("use_cpu", False)),
+            max_length=int(model_config.get("max_length", 256)),
+            num_labels=int(model_config.get("num_labels", 1)),
+        )
 
-    output_records = []
-    for record, score in zip(pair_records, scores.tolist()):
-        output_record = dict(record)
-        output_record["teacher_score"] = float(score)
-        output_records.append(output_record)
+        pair_inputs = [
+            (str(record["query_text"]), str(record["passage_text"]))
+            for record in pair_records
+        ]
+        scores = teacher.predict(
+            pair_inputs,
+            batch_size=int(inference_config.get("batch_size", 16)),
+            show_progress_bar=bool(inference_config.get("show_progress_bar", True)),
+            convert_to_numpy=True,
+        )
 
-    output_path = data_config["output_path"]
-    write_jsonl(output_path, output_records)
+        output_records = []
+        for record, score in zip(pair_records, scores.tolist()):
+            output_record = dict(record)
+            output_record["teacher_score"] = float(score)
+            output_records.append(output_record)
 
-    summary_path = Path(output_path).with_suffix(".summary.json")
-    score_values = [float(score) for score in scores.tolist()]
-    write_json(
-        summary_path,
-        {
-            "teacher_model_name_or_path": str(model_config["model_name_or_path"]),
-            "pairs_path": str(data_config["pairs_path"]),
-            "output_path": str(output_path),
-            "num_pairs": len(output_records),
-            "min_teacher_score": min(score_values),
-            "max_teacher_score": max(score_values),
-            "mean_teacher_score": statistics.fmean(score_values),
-        },
-    )
+        output_path = data_config["output_path"]
+        write_jsonl(output_path, output_records)
 
-    print(f"Saved distillation soft labels to {output_path}")
-    print(f"Pairs: {len(output_records)}")
+        summary_path = Path(output_path).with_suffix(".summary.json")
+        score_values = [float(score) for score in scores.tolist()]
+        write_json(
+            summary_path,
+            {
+                "teacher_model_name_or_path": str(model_config["model_name_or_path"]),
+                "pairs_path": str(data_config["pairs_path"]),
+                "output_path": str(output_path),
+                "num_pairs": len(output_records),
+                "min_teacher_score": min(score_values),
+                "max_teacher_score": max(score_values),
+                "mean_teacher_score": statistics.fmean(score_values),
+            },
+        )
+
+        tracker.log_metrics(
+            {
+                "num_pairs": len(output_records),
+                "min_teacher_score": min(score_values),
+                "max_teacher_score": max(score_values),
+                "mean_teacher_score": statistics.fmean(score_values),
+            }
+        )
+        tracker.log_artifact(output_path, artifact_path="outputs")
+        tracker.log_artifact(summary_path, artifact_path="outputs")
+
+        print(f"Saved distillation soft labels to {output_path}")
+        print(f"Pairs: {len(output_records)}")
 
 
 if __name__ == "__main__":

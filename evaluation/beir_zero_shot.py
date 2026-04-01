@@ -19,6 +19,7 @@ if str(ROOT) not in sys.path:
 
 from neural_rag.config import load_config
 from neural_rag.datasets import write_json
+from neural_rag.mlflow_utils import flatten_mapping, sanitize_metric_name, start_mlflow_run
 
 
 def parse_args() -> argparse.Namespace:
@@ -88,203 +89,236 @@ def main() -> None:
     args = parse_args()
     config = load_config(args.config)
 
-    dataset_config = config.get("dataset", {})
-    model_config = config.get("model", {})
-    retrieval_config = config.get("retrieval", {})
-    output_config = config.get("outputs", {})
+    with start_mlflow_run(
+        config.get("mlflow", {}),
+        config_path=args.config,
+        default_run_name="beir-zero-shot",
+        default_tags={"stage": "evaluation", "script": "evaluation/beir_zero_shot.py"},
+    ) as tracker:
+        dataset_config = config.get("dataset", {})
+        model_config = config.get("model", {})
+        retrieval_config = config.get("retrieval", {})
+        output_config = config.get("outputs", {})
 
-    dataset_names = [str(name) for name in dataset_config.get("names", [])]
-    if not dataset_names:
-        raise ValueError("dataset.names must contain at least one BEIR dataset name.")
+        tracker.log_params(flatten_mapping(config))
 
-    datasets_root = Path(dataset_config.get("root_dir", "artifacts/beir/datasets"))
-    split = str(dataset_config.get("split", "test"))
-    download = bool(dataset_config.get("download", True))
+        dataset_names = [str(name) for name in dataset_config.get("names", [])]
+        if not dataset_names:
+            raise ValueError("dataset.names must contain at least one BEIR dataset name.")
 
-    device = resolve_device(use_cpu=bool(model_config.get("use_cpu", False)))
-    prompts = None
-    if model_config.get("query_prefix") or model_config.get("passage_prefix"):
-        prompts = {
-            "query": str(model_config.get("query_prefix", "")),
-            "passage": str(model_config.get("passage_prefix", "")),
-        }
+        datasets_root = Path(dataset_config.get("root_dir", "artifacts/beir/datasets"))
+        split = str(dataset_config.get("split", "test"))
+        download = bool(dataset_config.get("download", True))
 
-    batch_size = int(retrieval_config.get("batch_size", 16))
-    corpus_chunk_size = int(retrieval_config.get("corpus_chunk_size", 2048))
-    score_function = str(retrieval_config.get("score_function", "cos_sim"))
-    k_values = [int(k) for k in retrieval_config.get("k_values", [1, 3, 5, 10, 100])]
-    report_k = int(retrieval_config.get("report_k", 10))
+        device = resolve_device(use_cpu=bool(model_config.get("use_cpu", False)))
+        prompts = None
+        if model_config.get("query_prefix") or model_config.get("passage_prefix"):
+            prompts = {
+                "query": str(model_config.get("query_prefix", "")),
+                "passage": str(model_config.get("passage_prefix", "")),
+            }
 
-    beir_model = SentenceBERT(
-        str(model_config["model_name_or_path"]),
-        max_length=int(model_config.get("max_length", 256)),
-        prompts=prompts,
-        device=device,
-    )
-    retriever = EvaluateRetrieval(
-        DRES(
-            beir_model,
-            batch_size=batch_size,
-            corpus_chunk_size=corpus_chunk_size,
-            show_progress_bar=bool(retrieval_config.get("show_progress_bar", True)),
-            convert_to_tensor=True,
-        ),
-        k_values=k_values,
-        score_function=score_function,
-    )
+        batch_size = int(retrieval_config.get("batch_size", 16))
+        corpus_chunk_size = int(retrieval_config.get("corpus_chunk_size", 2048))
+        score_function = str(retrieval_config.get("score_function", "cos_sim"))
+        k_values = [int(k) for k in retrieval_config.get("k_values", [1, 3, 5, 10, 100])]
+        report_k = int(retrieval_config.get("report_k", 10))
 
-    output_dir = Path(output_config.get("output_dir", "results/beir_zero_shot"))
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    dataset_summaries: list[dict[str, object]] = []
-    markdown_lines = [
-        "| Dataset | Split | NDCG@{} | MRR@{} | MAP@{} | Queries | Corpus | Device | Time (s) |".format(
-            report_k,
-            report_k,
-            report_k,
-        ),
-        "|---|---|---|---|---|---|---|---|---|",
-    ]
-
-    for dataset_name in dataset_names:
-        data_path = load_dataset_path(dataset_name, datasets_root, download=download)
-        corpus, queries, qrels = GenericDataLoader(data_folder=str(data_path)).load(split=split)
-
-        start = time.perf_counter()
-        results = retriever.retrieve(corpus, queries)
-        elapsed_seconds = time.perf_counter() - start
-
-        ndcg, map_scores, recall, precision = retriever.evaluate(
-            qrels,
-            results,
-            retriever.k_values,
+        beir_model = SentenceBERT(
+            str(model_config["model_name_or_path"]),
+            max_length=int(model_config.get("max_length", 256)),
+            prompts=prompts,
+            device=device,
         )
-        mrr = retriever.evaluate_custom(
-            qrels,
-            results,
-            retriever.k_values,
-            metric="mrr",
+        retriever = EvaluateRetrieval(
+            DRES(
+                beir_model,
+                batch_size=batch_size,
+                corpus_chunk_size=corpus_chunk_size,
+                show_progress_bar=bool(retrieval_config.get("show_progress_bar", True)),
+                convert_to_tensor=True,
+            ),
+            k_values=k_values,
+            score_function=score_function,
         )
 
-        dataset_run_path = output_dir / f"{dataset_name}.run.json"
-        dataset_metrics_path = output_dir / f"{dataset_name}.metrics.json"
-        write_json(dataset_run_path, results)
+        output_dir = Path(output_config.get("output_dir", "results/beir_zero_shot"))
+        output_dir.mkdir(parents=True, exist_ok=True)
 
-        metrics_payload = {
-            "dataset": dataset_name,
-            "split": split,
-            "model_name_or_path": str(model_config["model_name_or_path"]),
-            "device": device,
-            "num_queries": len(queries),
-            "num_corpus_docs": len(corpus),
-            "elapsed_seconds": elapsed_seconds,
-            "score_function": score_function,
-            "k_values": k_values,
-            "metrics": {
-                "ndcg": ndcg,
-                "map": map_scores,
-                "recall": recall,
-                "precision": precision,
-                "mrr": mrr,
-            },
+        dataset_summaries: list[dict[str, object]] = []
+        markdown_lines = [
+            "| Dataset | Split | NDCG@{} | MRR@{} | MAP@{} | Queries | Corpus | Device | Time (s) |".format(
+                report_k,
+                report_k,
+                report_k,
+            ),
+            "|---|---|---|---|---|---|---|---|---|",
+        ]
+
+        for dataset_name in dataset_names:
+            data_path = load_dataset_path(dataset_name, datasets_root, download=download)
+            corpus, queries, qrels = GenericDataLoader(data_folder=str(data_path)).load(split=split)
+
+            start = time.perf_counter()
+            results = retriever.retrieve(corpus, queries)
+            elapsed_seconds = time.perf_counter() - start
+
+            ndcg, map_scores, recall, precision = retriever.evaluate(
+                qrels,
+                results,
+                retriever.k_values,
+            )
+            mrr = retriever.evaluate_custom(
+                qrels,
+                results,
+                retriever.k_values,
+                metric="mrr",
+            )
+
+            dataset_run_path = output_dir / f"{dataset_name}.run.json"
+            dataset_metrics_path = output_dir / f"{dataset_name}.metrics.json"
+            write_json(dataset_run_path, results)
+
+            metrics_payload = {
+                "dataset": dataset_name,
+                "split": split,
+                "model_name_or_path": str(model_config["model_name_or_path"]),
+                "device": device,
+                "num_queries": len(queries),
+                "num_corpus_docs": len(corpus),
+                "elapsed_seconds": elapsed_seconds,
+                "score_function": score_function,
+                "k_values": k_values,
+                "metrics": {
+                    "ndcg": ndcg,
+                    "map": map_scores,
+                    "recall": recall,
+                    "precision": precision,
+                    "mrr": mrr,
+                },
+            }
+            write_json(dataset_metrics_path, metrics_payload)
+
+            ndcg_report = extract_metric_at_k(ndcg, "NDCG", report_k)
+            mrr_report = extract_metric_at_k(mrr, "MRR", report_k)
+            map_report = extract_metric_at_k(map_scores, "MAP", report_k)
+
+            dataset_summary = {
+                "dataset": dataset_name,
+                "split": split,
+                "data_path": str(data_path),
+                "run_path": str(dataset_run_path),
+                "metrics_path": str(dataset_metrics_path),
+                "num_queries": len(queries),
+                "num_corpus_docs": len(corpus),
+                "elapsed_seconds": elapsed_seconds,
+                "ndcg_at_report_k": ndcg_report,
+                "mrr_at_report_k": mrr_report,
+                "map_at_report_k": map_report,
+            }
+            dataset_summaries.append(dataset_summary)
+
+            tracker.log_metrics(
+                {
+                    sanitize_metric_name(f"{dataset_name}.ndcg_at_{report_k}"): ndcg_report,
+                    sanitize_metric_name(f"{dataset_name}.mrr_at_{report_k}"): mrr_report,
+                    sanitize_metric_name(f"{dataset_name}.map_at_{report_k}"): map_report,
+                    sanitize_metric_name(f"{dataset_name}.elapsed_seconds"): elapsed_seconds,
+                }
+            )
+            tracker.log_artifact(dataset_run_path, artifact_path="outputs")
+            tracker.log_artifact(dataset_metrics_path, artifact_path="outputs")
+
+            markdown_lines.append(
+                "| {} | {} | {} | {} | {} | {} | {} | {} | {:.2f} |".format(
+                    dataset_name,
+                    split,
+                    format_optional_metric(ndcg_report),
+                    format_optional_metric(mrr_report),
+                    format_optional_metric(map_report),
+                    len(queries),
+                    len(corpus),
+                    device,
+                    elapsed_seconds,
+                )
+            )
+
+            print(
+                f"{dataset_name}: "
+                f"NDCG@{report_k}={format_optional_metric(ndcg_report)} "
+                f"MRR@{report_k}={format_optional_metric(mrr_report)} "
+                f"MAP@{report_k}={format_optional_metric(map_report)} "
+                f"time={elapsed_seconds:.2f}s"
+            )
+
+        total_elapsed_seconds = sum(
+            float(dataset["elapsed_seconds"]) for dataset in dataset_summaries
+        )
+        aggregate_summary = {
+            "num_datasets": len(dataset_summaries),
+            "num_queries": sum(int(dataset["num_queries"]) for dataset in dataset_summaries),
+            "num_corpus_docs": sum(int(dataset["num_corpus_docs"]) for dataset in dataset_summaries),
+            "total_elapsed_seconds": total_elapsed_seconds,
+            "mean_elapsed_seconds": (
+                total_elapsed_seconds / len(dataset_summaries) if dataset_summaries else 0.0
+            ),
+            "ndcg_at_report_k": mean_optional(
+                [dataset["ndcg_at_report_k"] for dataset in dataset_summaries]
+            ),
+            "mrr_at_report_k": mean_optional(
+                [dataset["mrr_at_report_k"] for dataset in dataset_summaries]
+            ),
+            "map_at_report_k": mean_optional(
+                [dataset["map_at_report_k"] for dataset in dataset_summaries]
+            ),
         }
-        write_json(dataset_metrics_path, metrics_payload)
-
-        ndcg_report = extract_metric_at_k(ndcg, "NDCG", report_k)
-        mrr_report = extract_metric_at_k(mrr, "MRR", report_k)
-        map_report = extract_metric_at_k(map_scores, "MAP", report_k)
-
-        dataset_summary = {
-            "dataset": dataset_name,
-            "split": split,
-            "data_path": str(data_path),
-            "run_path": str(dataset_run_path),
-            "metrics_path": str(dataset_metrics_path),
-            "num_queries": len(queries),
-            "num_corpus_docs": len(corpus),
-            "elapsed_seconds": elapsed_seconds,
-            "ndcg_at_report_k": ndcg_report,
-            "mrr_at_report_k": mrr_report,
-            "map_at_report_k": map_report,
-        }
-        dataset_summaries.append(dataset_summary)
 
         markdown_lines.append(
-            "| {} | {} | {} | {} | {} | {} | {} | {} | {:.2f} |".format(
-                dataset_name,
-                split,
-                format_optional_metric(ndcg_report),
-                format_optional_metric(mrr_report),
-                format_optional_metric(map_report),
-                len(queries),
-                len(corpus),
+            "| Macro Average | - | {} | {} | {} | {} | {} | {} | {:.2f} |".format(
+                format_optional_metric(aggregate_summary["ndcg_at_report_k"]),
+                format_optional_metric(aggregate_summary["mrr_at_report_k"]),
+                format_optional_metric(aggregate_summary["map_at_report_k"]),
+                aggregate_summary["num_queries"],
+                aggregate_summary["num_corpus_docs"],
                 device,
-                elapsed_seconds,
+                aggregate_summary["total_elapsed_seconds"],
             )
         )
 
-        print(
-            f"{dataset_name}: "
-            f"NDCG@{report_k}={format_optional_metric(ndcg_report)} "
-            f"MRR@{report_k}={format_optional_metric(mrr_report)} "
-            f"MAP@{report_k}={format_optional_metric(map_report)} "
-            f"time={elapsed_seconds:.2f}s"
+        summary_payload = {
+            "model_name_or_path": str(model_config["model_name_or_path"]),
+            "device": device,
+            "score_function": score_function,
+            "batch_size": batch_size,
+            "corpus_chunk_size": corpus_chunk_size,
+            "k_values": k_values,
+            "report_k": report_k,
+            "datasets": dataset_summaries,
+            "aggregate": aggregate_summary,
+        }
+
+        summary_json_path = Path(output_config["summary_json_path"])
+        summary_markdown_path = Path(output_config["summary_markdown_path"])
+        write_json(summary_json_path, summary_payload)
+        summary_markdown_path.parent.mkdir(parents=True, exist_ok=True)
+        summary_markdown_path.write_text("\n".join(markdown_lines) + "\n", encoding="utf-8")
+
+        tracker.log_metrics(
+            {
+                f"aggregate.ndcg_at_{report_k}": aggregate_summary["ndcg_at_report_k"],
+                f"aggregate.mrr_at_{report_k}": aggregate_summary["mrr_at_report_k"],
+                f"aggregate.map_at_{report_k}": aggregate_summary["map_at_report_k"],
+                "aggregate.num_datasets": aggregate_summary["num_datasets"],
+                "aggregate.num_queries": aggregate_summary["num_queries"],
+                "aggregate.num_corpus_docs": aggregate_summary["num_corpus_docs"],
+                "aggregate.total_elapsed_seconds": aggregate_summary["total_elapsed_seconds"],
+            }
         )
+        tracker.log_artifact(summary_json_path, artifact_path="outputs")
+        tracker.log_artifact(summary_markdown_path, artifact_path="outputs")
 
-    total_elapsed_seconds = sum(
-        float(dataset["elapsed_seconds"]) for dataset in dataset_summaries
-    )
-    aggregate_summary = {
-        "num_datasets": len(dataset_summaries),
-        "num_queries": sum(int(dataset["num_queries"]) for dataset in dataset_summaries),
-        "num_corpus_docs": sum(int(dataset["num_corpus_docs"]) for dataset in dataset_summaries),
-        "total_elapsed_seconds": total_elapsed_seconds,
-        "mean_elapsed_seconds": (
-            total_elapsed_seconds / len(dataset_summaries) if dataset_summaries else 0.0
-        ),
-        "ndcg_at_report_k": mean_optional(
-            [dataset["ndcg_at_report_k"] for dataset in dataset_summaries]
-        ),
-        "mrr_at_report_k": mean_optional(
-            [dataset["mrr_at_report_k"] for dataset in dataset_summaries]
-        ),
-        "map_at_report_k": mean_optional(
-            [dataset["map_at_report_k"] for dataset in dataset_summaries]
-        ),
-    }
-
-    markdown_lines.append(
-        "| Macro Average | - | {} | {} | {} | {} | {} | {} | {:.2f} |".format(
-            format_optional_metric(aggregate_summary["ndcg_at_report_k"]),
-            format_optional_metric(aggregate_summary["mrr_at_report_k"]),
-            format_optional_metric(aggregate_summary["map_at_report_k"]),
-            aggregate_summary["num_queries"],
-            aggregate_summary["num_corpus_docs"],
-            device,
-            aggregate_summary["total_elapsed_seconds"],
-        )
-    )
-
-    summary_payload = {
-        "model_name_or_path": str(model_config["model_name_or_path"]),
-        "device": device,
-        "score_function": score_function,
-        "batch_size": batch_size,
-        "corpus_chunk_size": corpus_chunk_size,
-        "k_values": k_values,
-        "report_k": report_k,
-        "datasets": dataset_summaries,
-        "aggregate": aggregate_summary,
-    }
-
-    summary_json_path = Path(output_config["summary_json_path"])
-    summary_markdown_path = Path(output_config["summary_markdown_path"])
-    write_json(summary_json_path, summary_payload)
-    summary_markdown_path.parent.mkdir(parents=True, exist_ok=True)
-    summary_markdown_path.write_text("\n".join(markdown_lines) + "\n", encoding="utf-8")
-
-    print(f"Saved BEIR summary JSON to {summary_json_path}")
-    print(f"Saved BEIR summary Markdown to {summary_markdown_path}")
+        print(f"Saved BEIR summary JSON to {summary_json_path}")
+        print(f"Saved BEIR summary Markdown to {summary_markdown_path}")
 
 
 if __name__ == "__main__":

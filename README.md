@@ -21,6 +21,7 @@ Implemented so far in the codebase:
 - Latency benchmarking and combined results-table generation across retrieval stages
 - CUDA-enabled PyTorch in `.venv` for GPU-backed retrieval and reranking on this machine
 - BEIR zero-shot evaluation with GPU-backed dense retrieval, multi-dataset sweeps, and saved benchmark summaries
+- MLflow experiment logging across the training, retrieval, reranking, benchmarking, and BEIR entrypoints
 
 ## Phase 1 Quick Start
 
@@ -191,3 +192,28 @@ On the current GTX 1050 Ti setup, that broader sweep completed on `cuda` with:
 - `fiqa`: `NDCG@10=0.3687`, `MRR@10=0.4451`, `MAP@10=0.2914`
 - `trec-covid`: `NDCG@10=0.4725`, `MRR@10=0.7244`, `MAP@10=0.0105`
 - `macro average`: `NDCG@10=0.4954`, `MRR@10=0.5914`, `MAP@10=0.2993`
+
+## Phase 9 MLflow Experiment Tracking
+
+The sample configs for BM25, bi-encoder training/search, FAISS, cross-encoder training/reranking, ColBERT reranking, TensorFlow distillation, latency benchmarking, and BEIR evaluation now include an `mlflow` section by default. Using `tracking_uri: artifacts/mlruns` creates a local SQLite-backed MLflow store at `artifacts/mlruns/mlflow.db` plus colocated artifacts under `artifacts/mlruns/artifacts/`.
+
+To install the tracking dependency inside `.venv`:
+
+```bash
+.\.venv\Scripts\python -m pip install -r requirements.txt
+```
+
+To launch the local MLflow UI against the repo store:
+
+```bash
+.\.venv\Scripts\python -m mlflow ui --backend-store-uri sqlite:///artifacts/mlruns/mlflow.db --port 5000
+```
+
+Then open `http://127.0.0.1:5000` in your browser. Each logged run includes the config file as an artifact, plus the generated JSON and Markdown outputs for that script. A few useful examples are:
+
+```bash
+.\.venv\Scripts\python evaluation/run_baseline_bm25.py --config configs/bm25_baseline.yaml
+.\.venv\Scripts\python evaluation/latency_benchmark.py --config configs/latency_benchmark_sample.yaml
+.\.venv\Scripts\python evaluation/build_results_table.py --config configs/results_table_sample.yaml
+.\.venv\Scripts\python evaluation/beir_zero_shot.py --config configs/beir_zero_shot_broad.yaml
+```

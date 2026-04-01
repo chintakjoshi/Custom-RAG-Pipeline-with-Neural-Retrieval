@@ -48,3 +48,11 @@ benchmark:
   warmup_iterations: 1
   iterations: 3
   output_path: results/sample_latency_benchmark.json
+
+mlflow:
+  enabled: true
+  tracking_uri: artifacts/mlruns
+  experiment_name: custom-rag-pipeline
+  run_name: sample-latency-benchmark
+  tags:
+    phase: phase7

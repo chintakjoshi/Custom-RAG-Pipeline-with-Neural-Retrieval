@@ -14,6 +14,7 @@ if str(ROOT) not in sys.path:
 
 from neural_rag.config import load_config
 from neural_rag.datasets import load_queries, write_json
+from neural_rag.mlflow_utils import flatten_mapping, start_mlflow_run
 from retrieval.biencoder.model import load_biencoder, prefixed_texts
 
 
@@ -27,45 +28,70 @@ def main() -> None:
     args = parse_args()
     config = load_config(args.config)
 
-    data_config = config.get("data", {})
-    model_config = config.get("model", {})
-    index_config = config.get("index", {})
-    inference_config = config.get("inference", {})
+    with start_mlflow_run(
+        config.get("mlflow", {}),
+        config_path=args.config,
+        default_run_name="faiss-search",
+        default_tags={"stage": "faiss", "script": "retrieval/faiss_index/search.py"},
+    ) as tracker:
+        data_config = config.get("data", {})
+        model_config = config.get("model", {})
+        index_config = config.get("index", {})
+        inference_config = config.get("inference", {})
 
-    index_path = Path(index_config["index_path"])
-    ids_path = Path(index_config["ids_path"])
-    top_k = int(inference_config.get("top_k", 10))
+        tracker.log_params(
+            flatten_mapping(
+                {
+                    "data": data_config,
+                    "model": model_config,
+                    "index": index_config,
+                    "inference": inference_config,
+                }
+            )
+        )
 
-    index = faiss.read_index(str(index_path))
-    doc_ids = json.loads(ids_path.read_text(encoding="utf-8"))
-    queries = load_queries(data_config["queries_path"])
+        index_path = Path(index_config["index_path"])
+        ids_path = Path(index_config["ids_path"])
+        top_k = int(inference_config.get("top_k", 10))
 
-    model = load_biencoder(
-        str(model_config["model_name_or_path"]),
-        use_cpu=bool(inference_config.get("use_cpu", False)),
-    )
-    query_embeddings = model.encode(
-        prefixed_texts(queries.values(), str(model_config.get("query_prefix", ""))),
-        batch_size=int(inference_config.get("batch_size", 32)),
-        normalize_embeddings=bool(inference_config.get("normalize_embeddings", True)),
-        convert_to_numpy=True,
-        show_progress_bar=bool(inference_config.get("show_progress_bar", True)),
-    )
-    query_embeddings = np.ascontiguousarray(query_embeddings.astype("float32", copy=False))
+        index = faiss.read_index(str(index_path))
+        doc_ids = json.loads(ids_path.read_text(encoding="utf-8"))
+        queries = load_queries(data_config["queries_path"])
 
-    scores, indices = index.search(query_embeddings, top_k)
+        model = load_biencoder(
+            str(model_config["model_name_or_path"]),
+            use_cpu=bool(inference_config.get("use_cpu", False)),
+        )
+        query_embeddings = model.encode(
+            prefixed_texts(queries.values(), str(model_config.get("query_prefix", ""))),
+            batch_size=int(inference_config.get("batch_size", 32)),
+            normalize_embeddings=bool(inference_config.get("normalize_embeddings", True)),
+            convert_to_numpy=True,
+            show_progress_bar=bool(inference_config.get("show_progress_bar", True)),
+        )
+        query_embeddings = np.ascontiguousarray(query_embeddings.astype("float32", copy=False))
 
-    run: dict[str, dict[str, float]] = {}
-    for query_id, query_scores, query_indices in zip(queries.keys(), scores, indices):
-        ranked_docs: dict[str, float] = {}
-        for score, row_index in zip(query_scores.tolist(), query_indices.tolist()):
-            if row_index < 0:
-                continue
-            ranked_docs[doc_ids[row_index]] = float(score)
-        run[query_id] = ranked_docs
+        scores, indices = index.search(query_embeddings, top_k)
 
-    write_json(inference_config["run_output_path"], run)
-    print(f"Saved FAISS run to {inference_config['run_output_path']}")
+        run: dict[str, dict[str, float]] = {}
+        for query_id, query_scores, query_indices in zip(queries.keys(), scores, indices):
+            ranked_docs: dict[str, float] = {}
+            for score, row_index in zip(query_scores.tolist(), query_indices.tolist()):
+                if row_index < 0:
+                    continue
+                ranked_docs[doc_ids[row_index]] = float(score)
+            run[query_id] = ranked_docs
+
+        write_json(inference_config["run_output_path"], run)
+        tracker.log_metrics(
+            {
+                "num_queries": len(queries),
+                "num_documents": len(doc_ids),
+                "top_k": top_k,
+            }
+        )
+        tracker.log_artifact(inference_config["run_output_path"], artifact_path="outputs")
+        print(f"Saved FAISS run to {inference_config['run_output_path']}")
 
 
 if __name__ == "__main__":

@@ -14,3 +14,11 @@ inference:
   top_k: 5
   use_cpu: false
   run_output_path: results/sample_colbert_reranked_run.json
+
+mlflow:
+  enabled: true
+  tracking_uri: artifacts/mlruns
+  experiment_name: custom-rag-pipeline
+  run_name: sample-colbert-rerank
+  tags:
+    phase: phase5

@@ -30,3 +30,11 @@ methods:
 outputs:
   json_path: results/sample_results_table.json
   markdown_path: results/sample_results_table.md
+
+mlflow:
+  enabled: true
+  tracking_uri: artifacts/mlruns
+  experiment_name: custom-rag-pipeline
+  run_name: sample-results-table
+  tags:
+    phase: phase7

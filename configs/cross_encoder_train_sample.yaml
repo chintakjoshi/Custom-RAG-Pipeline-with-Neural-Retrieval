@@ -15,3 +15,11 @@ training:
   warmup_ratio: 0.0
   use_cpu: false
   show_progress_bar: true
+
+mlflow:
+  enabled: true
+  tracking_uri: artifacts/mlruns
+  experiment_name: custom-rag-pipeline
+  run_name: sample-cross-encoder-train
+  tags:
+    phase: phase4

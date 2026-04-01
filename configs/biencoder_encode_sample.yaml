@@ -12,3 +12,11 @@ inference:
   show_progress_bar: true
   embeddings_path: artifacts/sample_msmarco_passage/passage_embeddings.npy
   ids_path: artifacts/sample_msmarco_passage/passage_ids.json
+
+mlflow:
+  enabled: true
+  tracking_uri: artifacts/mlruns
+  experiment_name: custom-rag-pipeline
+  run_name: sample-biencoder-encode
+  tags:
+    phase: phase3

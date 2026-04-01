@@ -16,3 +16,11 @@ training:
   seed: 42
   target_transform: zscore
   verbose: true
+
+mlflow:
+  enabled: true
+  tracking_uri: artifacts/mlruns
+  experiment_name: custom-rag-pipeline
+  run_name: sample-tf-student-train
+  tags:
+    phase: phase6

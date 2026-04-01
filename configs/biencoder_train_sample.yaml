@@ -22,3 +22,11 @@ training:
   seed: 42
   run_name: sample-biencoder
   use_cpu: false
+
+mlflow:
+  enabled: true
+  tracking_uri: artifacts/mlruns
+  experiment_name: custom-rag-pipeline
+  run_name: sample-biencoder-train
+  tags:
+    phase: phase2

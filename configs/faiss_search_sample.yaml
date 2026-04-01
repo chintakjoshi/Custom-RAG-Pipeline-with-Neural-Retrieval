@@ -16,3 +16,11 @@ inference:
   use_cpu: false
   show_progress_bar: true
   run_output_path: results/sample_faiss_run.json
+
+mlflow:
+  enabled: true
+  tracking_uri: artifacts/mlruns
+  experiment_name: custom-rag-pipeline
+  run_name: sample-faiss-search
+  tags:
+    phase: phase3

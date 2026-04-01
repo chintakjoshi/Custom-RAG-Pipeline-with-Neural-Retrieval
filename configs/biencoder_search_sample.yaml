@@ -14,3 +14,11 @@ inference:
   use_cpu: false
   show_progress_bar: true
   run_output_path: results/sample_biencoder_run.json
+
+mlflow:
+  enabled: true
+  tracking_uri: artifacts/mlruns
+  experiment_name: custom-rag-pipeline
+  run_name: sample-biencoder-search
+  tags:
+    phase: phase2
