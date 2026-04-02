@@ -23,6 +23,7 @@ Implemented so far in the codebase:
 - BEIR zero-shot evaluation with GPU-backed dense retrieval, multi-dataset sweeps, and saved benchmark summaries
 - MLflow experiment logging across the training, retrieval, reranking, benchmarking, and BEIR entrypoints
 - Ollama-based grounded answer generation from reranked passages with prompt and answer artifact export
+- FastAPI serving layer with `/health`, `/retrieve`, `/query`, and Swagger docs over the local pipeline
 
 ## Phase 1 Quick Start
 
@@ -236,3 +237,34 @@ The sample config reads the cross-encoder reranked sample run, keeps the top-2 p
 - `results/sample_ollama_answers.md`
 
 The generator uses the local Ollama chat API, requires sentence-level citations like `[1]`, and falls back to `I don't know.` when the retrieved passages do not support the answer.
+
+## Phase 11 FastAPI Serving Layer
+
+The serving layer loads the FAISS index, bi-encoder, cross-encoder, and Ollama generator into one local process. The sample API config is `configs/serving_api_sample.yaml`.
+
+To launch it in PowerShell:
+
+```bash
+$env:NEURAL_RAG_API_CONFIG="configs/serving_api_sample.yaml"
+.\.venv\Scripts\python -m uvicorn serving.api:app --host 127.0.0.1 --port 8000
+```
+
+Then open:
+
+- `http://127.0.0.1:8000/docs`
+- `http://127.0.0.1:8000/health`
+
+Example query:
+
+```bash
+Invoke-RestMethod -Method Post `
+  -Uri "http://127.0.0.1:8000/query" `
+  -ContentType "application/json" `
+  -Body '{"query":"What causes inflation?","top_k":2,"include_prompt":true}'
+```
+
+Available endpoints:
+
+- `GET /health` for model and generator readiness
+- `POST /retrieve` for reranked passages without generation
+- `POST /query` for end-to-end grounded answer generation
