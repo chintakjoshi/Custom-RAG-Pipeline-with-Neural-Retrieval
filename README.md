@@ -22,6 +22,7 @@ Implemented so far in the codebase:
 - CUDA-enabled PyTorch in `.venv` for GPU-backed retrieval and reranking on this machine
 - BEIR zero-shot evaluation with GPU-backed dense retrieval, multi-dataset sweeps, and saved benchmark summaries
 - MLflow experiment logging across the training, retrieval, reranking, benchmarking, and BEIR entrypoints
+- Ollama-based grounded answer generation from reranked passages with prompt and answer artifact export
 
 ## Phase 1 Quick Start
 
@@ -217,3 +218,21 @@ Then open `http://127.0.0.1:5000` in your browser. Each logged run includes the 
 .\.venv\Scripts\python evaluation/build_results_table.py --config configs/results_table_sample.yaml
 .\.venv\Scripts\python evaluation/beir_zero_shot.py --config configs/beir_zero_shot_broad.yaml
 ```
+
+## Phase 10 Ollama Generator Integration
+
+Install Ollama locally, pull a small grounded-answer model, then run the generation step against an existing reranked run:
+
+```bash
+ollama pull phi3:mini
+.\.venv\Scripts\python serving/generate_answers.py --config configs/ollama_generate_sample.yaml
+```
+
+The sample config reads the cross-encoder reranked sample run, keeps the top-2 passages per query, and writes:
+
+- `results/sample_ollama_answers.json`
+- `results/sample_ollama_prompts.json`
+- `results/sample_ollama_summary.json`
+- `results/sample_ollama_answers.md`
+
+The generator uses the local Ollama chat API, requires sentence-level citations like `[1]`, and falls back to `I don't know.` when the retrieved passages do not support the answer.
