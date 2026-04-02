@@ -1,0 +1,37 @@
+data:
+  corpus_path: artifacts/sample_msmarco_passage/corpus.jsonl
+  queries_path: artifacts/sample_msmarco_passage/queries.dev.jsonl
+  run_path: results/sample_cross_encoder_reranked_run.json
+  query_ids: ["201", "202"]
+
+retrieval:
+  top_k_passages: 2
+
+generator:
+  base_url: http://localhost:11434
+  model: phi3:mini
+  timeout_seconds: 180
+  strict_model_check: true
+  preview_only: false
+  system_prompt: >-
+    You are a grounded retrieval assistant. Use only the provided passages and
+    never invent facts that are not explicitly supported by them.
+  options:
+    temperature: 0
+
+prompt:
+  unknown_response: I don't know.
+
+outputs:
+  answers_json_path: results/sample_ollama_answers.json
+  prompts_json_path: results/sample_ollama_prompts.json
+  summary_json_path: results/sample_ollama_summary.json
+  answers_markdown_path: results/sample_ollama_answers.md
+
+mlflow:
+  enabled: true
+  tracking_uri: artifacts/mlruns
+  experiment_name: custom-rag-pipeline
+  run_name: sample-ollama-generation
+  tags:
+    phase: phase10
