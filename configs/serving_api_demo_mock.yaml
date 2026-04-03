@@ -1,0 +1,37 @@
+data:
+  corpus_path: artifacts/sample_msmarco_passage/corpus.jsonl
+  faiss_index_path: artifacts/sample_msmarco_passage/faiss/index.flatip
+  faiss_ids_path: artifacts/sample_msmarco_passage/passage_ids.json
+
+retrieval:
+  model_name_or_path: checkpoints/sample_biencoder
+  query_prefix: ""
+  batch_size: 8
+  normalize_embeddings: true
+  top_k: 5
+  use_cpu: true
+
+reranking:
+  model_name_or_path: checkpoints/sample_cross_encoder
+  max_length: 256
+  num_labels: 1
+  batch_size: 8
+  top_k: 3
+  use_cpu: true
+
+generator:
+  enabled: true
+  base_url: http://127.0.0.1:11435
+  model: phi3:mini
+  timeout_seconds: 60
+  strict_model_check: true
+  validate_on_startup: true
+  preview_only: false
+  system_prompt: >-
+    You are a grounded retrieval assistant. Use only the provided passages and
+    never invent facts that are not explicitly supported by them.
+  options:
+    temperature: 0
+
+prompt:
+  unknown_response: I don't know.

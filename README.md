@@ -24,6 +24,7 @@ Implemented so far in the codebase:
 - MLflow experiment logging across the training, retrieval, reranking, benchmarking, and BEIR entrypoints
 - Ollama-based grounded answer generation from reranked passages with prompt and answer artifact export
 - FastAPI serving layer with `/health`, `/retrieve`, `/query`, and Swagger docs over the local pipeline
+- End-to-end demo notebook that exercises the local API with a mock Ollama-compatible backend
 
 ## Phase 1 Quick Start
 
@@ -268,3 +269,19 @@ Available endpoints:
 - `GET /health` for model and generator readiness
 - `POST /retrieve` for reranked passages without generation
 - `POST /query` for end-to-end grounded answer generation
+
+## Phase 12 End-to-End Demo Notebook
+
+The final notebook demo is [06_end_to_end_demo.ipynb](/C:/Users/chint/Desktop/Custom-RAG-Pipeline-with-Neural-Retrieval/notebooks/06_end_to_end_demo.ipynb). It uses `configs/serving_api_demo_mock.yaml`, which points at a lightweight mock Ollama-compatible server on `127.0.0.1:11435`, so the notebook can run top-to-bottom even if the real Ollama daemon is not installed yet.
+
+The notebook covers:
+
+- starting the mock Ollama server
+- creating the FastAPI app in memory
+- calling `/health`
+- calling `/retrieve`
+- calling `/query`
+- showing the generated answer, citations, and prompt
+- printing the current sample benchmark table
+
+If you want to switch the notebook from the mock backend to a real Ollama daemon later, replace `configs/serving_api_demo_mock.yaml` with `configs/serving_api_sample.yaml` in the setup cell.
