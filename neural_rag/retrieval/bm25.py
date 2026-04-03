@@ -14,7 +14,7 @@ class SearchResult:
 
 
 class BM25Retriever:
-    """Small pure-Python BM25 implementation for the Phase 1 lexical baseline."""
+    """Small pure-Python BM25 implementation for the lexical baseline."""
 
     def __init__(
         self,

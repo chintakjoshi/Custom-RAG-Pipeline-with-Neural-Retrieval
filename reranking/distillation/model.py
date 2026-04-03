@@ -7,12 +7,12 @@ import numpy as np
 
 try:
     import tensorflow as tf
-except ImportError:  # pragma: no cover - optional dependency until Phase 6
+except ImportError:  # pragma: no cover - optional dependency for TensorFlow reranking
     tf = None
 
 try:
     from transformers import AutoTokenizer, TFAutoModelForSequenceClassification
-except ImportError:  # pragma: no cover - optional dependency until Phase 6
+except ImportError:  # pragma: no cover - optional dependency for TensorFlow reranking
     AutoTokenizer = None
     TFAutoModelForSequenceClassification = None
 
@@ -20,7 +20,7 @@ except ImportError:  # pragma: no cover - optional dependency until Phase 6
 def require_tensorflow() -> None:
     if tf is None or AutoTokenizer is None or TFAutoModelForSequenceClassification is None:
         raise RuntimeError(
-            "TensorFlow-compatible Transformers support is required for the distillation phase. "
+            "TensorFlow-compatible Transformers support is required for the distillation workflow. "
             "Install dependencies from requirements.txt inside .venv first."
         )
 

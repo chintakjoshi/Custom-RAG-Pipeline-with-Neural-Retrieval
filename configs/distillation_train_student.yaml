@@ -1,5 +1,5 @@
 data:
-  train_soft_labels_path: artifacts/sample_msmarco_passage/distillation_soft_labels.jsonl
+  train_soft_labels_path: artifacts/msmarco_passage_quickstart/distillation_soft_labels.jsonl
 
 model:
   model_name_or_path: distilbert-base-uncased
@@ -9,7 +9,7 @@ model:
   use_safetensors: false
 
 training:
-  output_dir: checkpoints/sample_tf_student
+  output_dir: checkpoints/tf_student_quickstart
   train_batch_size: 2
   epochs: 5
   learning_rate: 3.0e-5
@@ -21,6 +21,4 @@ mlflow:
   enabled: true
   tracking_uri: artifacts/mlruns
   experiment_name: custom-rag-pipeline
-  run_name: sample-tf-student-train
-  tags:
-    phase: phase6
+  run_name: tf-student-train

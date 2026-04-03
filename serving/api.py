@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from serving.pipeline import GeneratorUnavailableError, NeuralRAGPipeline
 
 
-DEFAULT_CONFIG_PATH = "configs/serving_api_sample.yaml"
+DEFAULT_CONFIG_PATH = "configs/serving_api.yaml"
 CONFIG_ENV_VAR = "NEURAL_RAG_API_CONFIG"
 
 

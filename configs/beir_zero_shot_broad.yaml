@@ -32,5 +32,3 @@ mlflow:
   tracking_uri: artifacts/mlruns
   experiment_name: custom-rag-pipeline
   run_name: broad-beir-sweep
-  tags:
-    phase: phase8

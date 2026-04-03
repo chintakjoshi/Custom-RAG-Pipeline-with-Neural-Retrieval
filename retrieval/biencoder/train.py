@@ -20,7 +20,7 @@ from retrieval.biencoder.model import load_biencoder
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Train the Phase 2 bi-encoder.")
+    parser = argparse.ArgumentParser(description="Train the bi-encoder.")
     parser.add_argument("--config", required=True)
     return parser.parse_args()
 

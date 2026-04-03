@@ -1,0 +1,14 @@
+embeddings:
+  embeddings_path: artifacts/msmarco_passage_quickstart/passage_embeddings.npy
+  ids_path: artifacts/msmarco_passage_quickstart/passage_ids.json
+
+index:
+  metric: ip
+  index_path: artifacts/msmarco_passage_quickstart/faiss/index.flatip
+  metadata_path: artifacts/msmarco_passage_quickstart/faiss/index_metadata.json
+
+mlflow:
+  enabled: true
+  tracking_uri: artifacts/mlruns
+  experiment_name: custom-rag-pipeline
+  run_name: faiss-build

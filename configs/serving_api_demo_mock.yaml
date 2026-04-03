@@ -1,10 +1,10 @@
 data:
-  corpus_path: artifacts/sample_msmarco_passage/corpus.jsonl
-  faiss_index_path: artifacts/sample_msmarco_passage/faiss/index.flatip
-  faiss_ids_path: artifacts/sample_msmarco_passage/passage_ids.json
+  corpus_path: artifacts/msmarco_passage_quickstart/corpus.jsonl
+  faiss_index_path: artifacts/msmarco_passage_quickstart/faiss/index.flatip
+  faiss_ids_path: artifacts/msmarco_passage_quickstart/passage_ids.json
 
 retrieval:
-  model_name_or_path: checkpoints/sample_biencoder
+  model_name_or_path: checkpoints/biencoder_quickstart
   query_prefix: ""
   batch_size: 8
   normalize_embeddings: true
@@ -12,7 +12,7 @@ retrieval:
   use_cpu: true
 
 reranking:
-  model_name_or_path: checkpoints/sample_cross_encoder
+  model_name_or_path: checkpoints/cross_encoder_quickstart
   max_length: 256
   num_labels: 1
   batch_size: 8

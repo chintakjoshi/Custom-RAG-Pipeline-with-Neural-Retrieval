@@ -22,11 +22,11 @@ from neural_rag.retrieval.bm25 import BM25Retriever
 
 
 DEFAULTS: dict[str, Any] = {
-    "corpus": "data/sample/corpus.jsonl",
-    "queries": "data/sample/queries.jsonl",
-    "qrels": "data/sample/qrels.jsonl",
-    "output": "results/sample_bm25_run.json",
-    "metrics_output": "results/sample_bm25_metrics.json",
+    "corpus": "data/fixtures/bm25_baseline/corpus.jsonl",
+    "queries": "data/fixtures/bm25_baseline/queries.jsonl",
+    "qrels": "data/fixtures/bm25_baseline/qrels.jsonl",
+    "output": "results/bm25_run.json",
+    "metrics_output": "results/bm25_metrics.json",
     "top_k": 10,
     "k1": 1.5,
     "b": 0.75,
@@ -35,7 +35,7 @@ DEFAULTS: dict[str, Any] = {
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run the Phase 1 BM25 baseline.")
+    parser = argparse.ArgumentParser(description="Run the BM25 baseline.")
     parser.add_argument("--config")
     parser.add_argument("--corpus")
     parser.add_argument("--queries")
