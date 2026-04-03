@@ -1,0 +1,17 @@
+inputs:
+  collection: data/fixtures/msmarco_passage/collection.tsv
+  queries:
+    train: data/fixtures/msmarco_passage/queries.train.tsv
+    dev: data/fixtures/msmarco_passage/queries.dev.tsv
+  qrels:
+    dev: data/fixtures/msmarco_passage/qrels.dev.tsv
+  triples:
+    train: data/fixtures/msmarco_passage/qidpidtriples.train.tsv
+
+output_dir: artifacts/msmarco_passage_quickstart
+
+limits:
+  collection: 0
+  queries: 0
+  qrels: 0
+  triples: 0

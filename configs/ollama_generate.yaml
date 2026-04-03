@@ -1,7 +1,7 @@
 data:
-  corpus_path: artifacts/sample_msmarco_passage/corpus.jsonl
-  queries_path: artifacts/sample_msmarco_passage/queries.dev.jsonl
-  run_path: results/sample_cross_encoder_reranked_run.json
+  corpus_path: artifacts/msmarco_passage_quickstart/corpus.jsonl
+  queries_path: artifacts/msmarco_passage_quickstart/queries.dev.jsonl
+  run_path: results/cross_encoder_reranked_run.json
   query_ids: ["201", "202"]
 
 retrieval:
@@ -23,15 +23,13 @@ prompt:
   unknown_response: I don't know.
 
 outputs:
-  answers_json_path: results/sample_ollama_answers.json
-  prompts_json_path: results/sample_ollama_prompts.json
-  summary_json_path: results/sample_ollama_summary.json
-  answers_markdown_path: results/sample_ollama_answers.md
+  answers_json_path: results/ollama_answers.json
+  prompts_json_path: results/ollama_prompts.json
+  summary_json_path: results/ollama_summary.json
+  answers_markdown_path: results/ollama_answers.md
 
 mlflow:
   enabled: true
   tracking_uri: artifacts/mlruns
   experiment_name: custom-rag-pipeline
-  run_name: sample-ollama-generation
-  tags:
-    phase: phase10
+  run_name: ollama-generation

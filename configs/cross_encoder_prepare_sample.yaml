@@ -1,3 +1,0 @@
-data:
-  triplets_path: artifacts/sample_msmarco_passage/biencoder_train_triplets.jsonl
-  output_path: artifacts/sample_msmarco_passage/cross_encoder_train_pairs.jsonl

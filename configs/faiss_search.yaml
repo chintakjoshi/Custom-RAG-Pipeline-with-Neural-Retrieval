@@ -1,0 +1,24 @@
+data:
+  queries_path: artifacts/msmarco_passage_quickstart/queries.dev.jsonl
+
+model:
+  model_name_or_path: checkpoints/biencoder_quickstart
+  query_prefix: ""
+
+index:
+  index_path: artifacts/msmarco_passage_quickstart/faiss/index.flatip
+  ids_path: artifacts/msmarco_passage_quickstart/passage_ids.json
+
+inference:
+  batch_size: 16
+  normalize_embeddings: true
+  top_k: 5
+  use_cpu: false
+  show_progress_bar: true
+  run_output_path: results/faiss_run.json
+
+mlflow:
+  enabled: true
+  tracking_uri: artifacts/mlruns
+  experiment_name: custom-rag-pipeline
+  run_name: faiss-search

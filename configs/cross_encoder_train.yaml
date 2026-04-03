@@ -1,5 +1,5 @@
 data:
-  train_pairs_path: artifacts/sample_msmarco_passage/cross_encoder_train_pairs.jsonl
+  train_pairs_path: artifacts/msmarco_passage_quickstart/cross_encoder_train_pairs.jsonl
 
 model:
   model_name: cross-encoder/ms-marco-MiniLM-L-6-v2
@@ -7,7 +7,7 @@ model:
   num_labels: 1
 
 training:
-  output_dir: checkpoints/sample_cross_encoder
+  output_dir: checkpoints/cross_encoder_quickstart
   train_batch_size: 2
   epochs: 1
   learning_rate: 2.0e-5
@@ -20,6 +20,4 @@ mlflow:
   enabled: true
   tracking_uri: artifacts/mlruns
   experiment_name: custom-rag-pipeline
-  run_name: sample-cross-encoder-train
-  tags:
-    phase: phase4
+  run_name: cross-encoder-train

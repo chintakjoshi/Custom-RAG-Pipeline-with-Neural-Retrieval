@@ -1,5 +1,5 @@
 data:
-  train_triplets_path: artifacts/sample_msmarco_passage/biencoder_train_triplets.jsonl
+  train_triplets_path: artifacts/msmarco_passage_quickstart/biencoder_train_triplets.jsonl
 
 model:
   model_name: sentence-transformers/all-MiniLM-L6-v2
@@ -11,7 +11,7 @@ loss:
   scale: 20.0
 
 training:
-  output_dir: checkpoints/sample_biencoder
+  output_dir: checkpoints/biencoder_quickstart
   per_device_train_batch_size: 2
   num_train_epochs: 1
   learning_rate: 2.0e-5
@@ -20,13 +20,11 @@ training:
   save_strategy: "no"
   save_total_limit: 1
   seed: 42
-  run_name: sample-biencoder
+  run_name: biencoder-quickstart
   use_cpu: false
 
 mlflow:
   enabled: true
   tracking_uri: artifacts/mlruns
   experiment_name: custom-rag-pipeline
-  run_name: sample-biencoder-train
-  tags:
-    phase: phase2
+  run_name: biencoder-train

@@ -1,0 +1,22 @@
+data:
+  corpus_path: artifacts/msmarco_passage_quickstart/corpus.jsonl
+  queries_path: artifacts/msmarco_passage_quickstart/queries.dev.jsonl
+  candidate_run_path: results/faiss_run.json
+
+model:
+  model_name_or_path: checkpoints/tf_student_quickstart
+  max_length: 256
+  num_labels: 1
+  from_pt: false
+  use_safetensors: false
+
+inference:
+  batch_size: 8
+  top_k: 5
+  run_output_path: results/tf_student_reranked_run.json
+
+mlflow:
+  enabled: true
+  tracking_uri: artifacts/mlruns
+  experiment_name: custom-rag-pipeline
+  run_name: tf-student-rerank

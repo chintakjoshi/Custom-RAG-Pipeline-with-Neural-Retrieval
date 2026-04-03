@@ -1,0 +1,19 @@
+data:
+  pairs_path: artifacts/msmarco_passage_quickstart/cross_encoder_train_pairs.jsonl
+  output_path: artifacts/msmarco_passage_quickstart/distillation_soft_labels.jsonl
+
+teacher_model:
+  model_name_or_path: checkpoints/cross_encoder_quickstart
+  max_length: 256
+  num_labels: 1
+
+inference:
+  batch_size: 8
+  use_cpu: false
+  show_progress_bar: true
+
+mlflow:
+  enabled: true
+  tracking_uri: artifacts/mlruns
+  experiment_name: custom-rag-pipeline
+  run_name: distillation-soft-labels

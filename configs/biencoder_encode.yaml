@@ -1,0 +1,20 @@
+data:
+  corpus_path: artifacts/msmarco_passage_quickstart/corpus.jsonl
+
+model:
+  model_name_or_path: checkpoints/biencoder_quickstart
+  passage_prefix: ""
+
+inference:
+  batch_size: 16
+  normalize_embeddings: true
+  use_cpu: false
+  show_progress_bar: true
+  embeddings_path: artifacts/msmarco_passage_quickstart/passage_embeddings.npy
+  ids_path: artifacts/msmarco_passage_quickstart/passage_ids.json
+
+mlflow:
+  enabled: true
+  tracking_uri: artifacts/mlruns
+  experiment_name: custom-rag-pipeline
+  run_name: biencoder-encode

@@ -1,9 +1,9 @@
 data:
-  corpus_path: artifacts/sample_msmarco_passage/corpus.jsonl
-  queries_path: artifacts/sample_msmarco_passage/queries.dev.jsonl
-  candidate_run_path: results/sample_faiss_run.json
-  faiss_index_path: artifacts/sample_msmarco_passage/faiss/index.flatip
-  faiss_ids_path: artifacts/sample_msmarco_passage/passage_ids.json
+  corpus_path: artifacts/msmarco_passage_quickstart/corpus.jsonl
+  queries_path: artifacts/msmarco_passage_quickstart/queries.dev.jsonl
+  candidate_run_path: results/faiss_run.json
+  faiss_index_path: artifacts/msmarco_passage_quickstart/faiss/index.flatip
+  faiss_ids_path: artifacts/msmarco_passage_quickstart/passage_ids.json
 
 bm25:
   top_k: 5
@@ -11,7 +11,7 @@ bm25:
   b: 0.75
 
 faiss:
-  model_name_or_path: checkpoints/sample_biencoder
+  model_name_or_path: checkpoints/biencoder_quickstart
   query_prefix: ""
   batch_size: 1
   normalize_embeddings: true
@@ -19,7 +19,7 @@ faiss:
   use_cpu: false
 
 cross_encoder:
-  model_name_or_path: checkpoints/sample_cross_encoder
+  model_name_or_path: checkpoints/cross_encoder_quickstart
   max_length: 256
   num_labels: 1
   batch_size: 8
@@ -36,7 +36,7 @@ colbert:
   use_cpu: false
 
 tf_student:
-  model_name_or_path: checkpoints/sample_tf_student
+  model_name_or_path: checkpoints/tf_student_quickstart
   max_length: 256
   num_labels: 1
   from_pt: false
@@ -47,12 +47,10 @@ tf_student:
 benchmark:
   warmup_iterations: 1
   iterations: 3
-  output_path: results/sample_latency_benchmark.json
+  output_path: results/latency_benchmark.json
 
 mlflow:
   enabled: true
   tracking_uri: artifacts/mlruns
   experiment_name: custom-rag-pipeline
-  run_name: sample-latency-benchmark
-  tags:
-    phase: phase7
+  run_name: latency-benchmark

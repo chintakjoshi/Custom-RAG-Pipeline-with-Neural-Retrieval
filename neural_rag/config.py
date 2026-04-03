@@ -6,7 +6,7 @@ from typing import Any
 
 try:
     import yaml
-except ImportError:  # pragma: no cover - optional dependency in Phase 1
+except ImportError:  # pragma: no cover - optional dependency for YAML configs
     yaml = None
 
 
